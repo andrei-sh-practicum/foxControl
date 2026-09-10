@@ -3,7 +3,7 @@ package com.andrew.foxcontrol.core.tracking
 import android.content.Context
 import android.os.Build
 import android.util.Log
-import java.io.RandomAccessFile
+import java.io.File
 import java.text.SimpleDateFormat
 import java.util.*
 
@@ -15,13 +15,13 @@ object TrackingLogStorage {
 
     // In-memory buffer for fast UI access (filled from file on init)
     private val logBuffer = mutableListOf<String>()
-    private var logFile: java.io.File? = null
+    private var logFile: File? = null
     private var contextRef: Context? = null
     private var initialized = false
 
     fun init(context: Context) {
         try {
-            val file = java.io.File(context.filesDir, LOG_FILE_NAME)
+            val file = File(context.filesDir, LOG_FILE_NAME)
             logFile = file
             contextRef = context
             initialized = true
@@ -30,40 +30,74 @@ object TrackingLogStorage {
             if (file.exists()) {
                 try {
                     file.readLines().filter { it.isNotBlank() }.take(MAX_LOG_LINES).forEach { logBuffer.add(it) }
+                    Log.d(TAG, "Loaded ${logBuffer.size} existing log entries from file: ${file.absolutePath}")
                 } catch (e: Exception) {
-                    Log.e(TAG, "Failed to load log file", e)
+                    Log.e(TAG, "Failed to load log file: ${e.message}", e)
                 }
+            } else {
+                Log.d(TAG, "Log file does not exist yet: ${file.absolutePath}")
             }
-            Log.d(TAG, "TrackingLogStorage initialized, ${logBuffer.size} existing entries")
         } catch (e: Exception) {
-            Log.e(TAG, "Failed to initialize TrackingLogStorage", e)
+            Log.e(TAG, "Failed to initialize TrackingLogStorage: ${e.message}", e)
         }
     }
 
     /**
-     * Add a log entry. Auto-initializes file if not yet initialized.
-     * This ensures logs from Worker processes (separate JVM) are persisted.
+     * Add a log entry without context — uses already initialized file.
+     * Call from UI thread where TrackingLogStorage.init() was called.
      */
     fun add(tag: String, message: String) {
-        try {
-            val timestamp = SimpleDateFormat("HH:mm:ss.SSS", Locale.getDefault()).format(Date())
-            val line = "[$timestamp] [$tag] $message"
+        if (!initialized) {
+            Log.w(TAG, "TrackingLogStorage.add called before init — log will not be persisted")
+            return
+        }
+        addInternal(tag, message)
+    }
 
-            // Auto-initialize file if needed (for Worker processes)
+    /**
+     * Add a log entry with context — auto-initializes file from this context.
+     * Call from Worker/Service processes where init() may not have been called.
+     */
+    fun add(context: Context, tag: String, message: String) {
+        synchronized(this) {
             if (!initialized) {
                 try {
-                    val context = contextRef ?: return // Can't initialize without context
-                    logFile = java.io.File(context.filesDir, LOG_FILE_NAME)
+                    val file = File(context.filesDir, LOG_FILE_NAME)
+                    logFile = file
+                    contextRef = context
                     initialized = true
-                    // Load existing lines
-                    if (logFile!!.exists()) {
-                        logFile!!.readLines().filter { it.isNotBlank() }.take(MAX_LOG_LINES).forEach { logBuffer.add(it) }
+
+                    Log.d(TAG, "TrackingLogStorage initialized from context, file: ${file.absolutePath}")
+
+                    // Load existing lines into buffer
+                    if (file.exists()) {
+                        try {
+                            file.readLines().filter { it.isNotBlank() }.take(MAX_LOG_LINES).forEach { logBuffer.add(it) }
+                            Log.d(TAG, "Loaded ${logBuffer.size} existing log entries from file")
+                        } catch (e: Exception) {
+                            Log.e(TAG, "Failed to load log file on worker init: ${e.message}", e)
+                        }
+                    } else {
+                        Log.d(TAG, "Log file does not exist yet: ${file.absolutePath}")
                     }
                 } catch (e: Exception) {
-                    Log.e(TAG, "Auto-init failed: ${e.message}")
+                    Log.e(TAG, "Failed to auto-initialize TrackingLogStorage from context: ${e.message}", e)
                     return
                 }
             }
+        }
+        addInternal(tag, message)
+    }
+
+    private fun addInternal(tag: String, message: String) {
+        val file = logFile ?: run {
+            Log.w(TAG, "addInternal called but logFile is null")
+            return
+        }
+
+        try {
+            val timestamp = SimpleDateFormat("HH:mm:ss.SSS", Locale.getDefault()).format(Date())
+            val line = "[$timestamp] [$tag] $message"
 
             // Add to in-memory buffer
             logBuffer.add(0, line)
@@ -71,19 +105,14 @@ object TrackingLogStorage {
                 logBuffer.removeAt(logBuffer.size - 1)
             }
 
-            // Append to file (append is atomic and fast)
-            logFile?.let { file ->
-                try {
-                    RandomAccessFile(file, "rw").use { raf ->
-                        raf.seek(raf.length())
-                        raf.writeBytes(line + "\n")
-                    }
-                } catch (e: Exception) {
-                    Log.e(TAG, "Failed to write log file: ${e.message}")
-                }
+            // Append to file using appendText (more reliable than RandomAccessFile)
+            try {
+                file.appendText(line + "\n")
+            } catch (e: Exception) {
+                Log.e(TAG, "Failed to append to log file '${file.absolutePath}': ${e.message}", e)
             }
         } catch (e: Exception) {
-            Log.e(TAG, "TrackingLogStorage.add failed: ${e.message}")
+            Log.e(TAG, "TrackingLogStorage.addInternal failed: ${e.message}", e)
         }
     }
 
@@ -92,18 +121,25 @@ object TrackingLogStorage {
      * across processes (e.g., Worker processes).
      */
     fun getAllLogs(): String {
+        val file = logFile
+
         // Always try to read from file first (authoritative source)
-        if (logFile?.exists() == true) {
+        if (file?.exists() == true) {
             try {
-                val lines = logFile!!.readLines().filter { it.isNotBlank() }
+                val lines = file.readLines().filter { it.isNotBlank() }
                 if (lines.isNotEmpty()) {
+                    Log.d(TAG, "Read ${lines.size} lines from file: ${file.absolutePath}")
                     // Take last MAX_LOG_LINES to handle overflow
                     val recent = if (lines.size > MAX_LOG_LINES) lines.subList(lines.size - MAX_LOG_LINES, lines.size) else lines
                     return recent.joinToString("\n")
+                } else {
+                    Log.d(TAG, "Log file is empty: ${file.absolutePath}")
                 }
             } catch (e: Exception) {
-                Log.e(TAG, "Failed to read log file: ${e.message}")
+                Log.e(TAG, "Failed to read log file: ${e.message}", e)
             }
+        } else {
+            Log.d(TAG, "Log file does not exist or is not readable: ${file?.absolutePath}")
         }
 
         // Fallback to in-memory buffer

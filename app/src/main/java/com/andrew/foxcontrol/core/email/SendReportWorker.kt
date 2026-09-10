@@ -35,150 +35,157 @@ class SendReportWorker @AssistedInject constructor(
     }
 
     override suspend fun doWork(): Result {
-        // Create notification channel
-        createNotificationChannel()
+        try {
+            // Create notification channel
+            createNotificationChannel()
 
-        // Show progress notification
-        setForeground(ForegroundInfo(NOTIFICATION_ID, buildNotification("Подготовка отчёта...")))
+            // Show progress notification
+            setForeground(ForegroundInfo(NOTIFICATION_ID, buildNotification("Подготовка отчёта...")))
 
-        TrackingLogStorage.add("EmailScheduler", "SendReportWorker: START")
+            TrackingLogStorage.add(applicationContext, "EmailScheduler", "SendReportWorker: START")
 
-        // Get email settings
-        val smtpHost = emailRepository.getSetting("smtp_host")
-        if (smtpHost == null) {
-            TrackingLogStorage.add("EmailScheduler", "SendReportWorker: MISSING smtp_host")
-            return Result.failure()
-        }
+            // Get email settings
+            val smtpHost = emailRepository.getSetting("smtp_host")
+            if (smtpHost == null) {
+                TrackingLogStorage.add(applicationContext, "EmailScheduler", "SendReportWorker: MISSING smtp_host")
+                return Result.failure()
+            }
 
-        val smtpPortStr = emailRepository.getSetting("smtp_port")
-        if (smtpPortStr == null) {
-            TrackingLogStorage.add("EmailScheduler", "SendReportWorker: MISSING smtp_port")
-            return Result.failure()
-        }
+            val smtpPortStr = emailRepository.getSetting("smtp_port")
+            if (smtpPortStr == null) {
+                TrackingLogStorage.add(applicationContext, "EmailScheduler", "SendReportWorker: MISSING smtp_port")
+                return Result.failure()
+            }
 
-        val login = emailRepository.getSetting("smtp_login")
-        if (login == null) {
-            TrackingLogStorage.add("EmailScheduler", "SendReportWorker: MISSING smtp_login")
-            return Result.failure()
-        }
+            val login = emailRepository.getSetting("smtp_login")
+            if (login == null) {
+                TrackingLogStorage.add(applicationContext, "EmailScheduler", "SendReportWorker: MISSING smtp_login")
+                return Result.failure()
+            }
 
-        val appPassword = emailRepository.getSetting("smtp_app_password")
-        if (appPassword == null) {
-            TrackingLogStorage.add("EmailScheduler", "SendReportWorker: MISSING smtp_app_password")
-            return Result.failure()
-        }
+            val appPassword = emailRepository.getSetting("smtp_app_password")
+            if (appPassword == null) {
+                TrackingLogStorage.add(applicationContext, "EmailScheduler", "SendReportWorker: MISSING smtp_app_password")
+                return Result.failure()
+            }
 
-        val fromEmail = emailRepository.getSetting("from_email")
-        if (fromEmail == null) {
-            TrackingLogStorage.add("EmailScheduler", "SendReportWorker: MISSING from_email")
-            return Result.failure()
-        }
+            val fromEmail = emailRepository.getSetting("from_email")
+            if (fromEmail == null) {
+                TrackingLogStorage.add(applicationContext, "EmailScheduler", "SendReportWorker: MISSING from_email")
+                return Result.failure()
+            }
 
-        val enabled = emailRepository.getSetting("email_enabled") ?: "false"
+            val enabled = emailRepository.getSetting("email_enabled") ?: "false"
 
-        if (enabled != "true") {
-            TrackingLogStorage.add("EmailScheduler", "SendReportWorker: reports disabled")
-            return Result.success()
-        }
+            if (enabled != "true") {
+                TrackingLogStorage.add(applicationContext, "EmailScheduler", "SendReportWorker: reports disabled")
+                return Result.success()
+            }
 
-        val smtpPort = smtpPortStr.toIntOrNull()
-        if (smtpPort == null) {
-            TrackingLogStorage.add("EmailScheduler", "SendReportWorker: invalid smtp_port='$smtpPortStr'")
-            return Result.failure()
-        }
+            val smtpPort = smtpPortStr.toIntOrNull()
+            if (smtpPort == null) {
+                TrackingLogStorage.add(applicationContext, "EmailScheduler", "SendReportWorker: invalid smtp_port='$smtpPortStr'")
+                return Result.failure()
+            }
 
-        TrackingLogStorage.add("EmailScheduler", "SendReportWorker: settings loaded, host=$smtpHost port=$smtpPort")
+            TrackingLogStorage.add(applicationContext, "EmailScheduler", "SendReportWorker: settings loaded, host=$smtpHost port=$smtpPort")
 
-        val config = EmailSender.EmailConfig(
-            smtpHost = smtpHost,
-            smtpPort = smtpPort,
-            login = login,
-            appPassword = appPassword,
-            fromEmail = fromEmail
-        )
+            val config = EmailSender.EmailConfig(
+                smtpHost = smtpHost,
+                smtpPort = smtpPort,
+                login = login,
+                appPassword = appPassword,
+                fromEmail = fromEmail
+            )
 
-        // Get active recipients
-        val activeRecipients = emailRepository.getActiveRecipients()
-        if (activeRecipients.isEmpty()) {
-            TrackingLogStorage.add("EmailScheduler", "SendReportWorker: NO active recipients")
+            // Get active recipients
+            val activeRecipients = emailRepository.getActiveRecipients()
+            if (activeRecipients.isEmpty()) {
+                TrackingLogStorage.add(applicationContext, "EmailScheduler", "SendReportWorker: NO active recipients")
+                val log = ReportSendLogEntity(
+                    date = getCurrentDate(),
+                    status = "FAILED",
+                    errorMessage = "No active recipients",
+                    recipientCount = 0
+                )
+                emailRepository.saveLog(log)
+                return Result.failure()
+            }
+
+            TrackingLogStorage.add(applicationContext, "EmailScheduler", "SendReportWorker: ${activeRecipients.size} recipients found")
+
+            // Get today's usage stats
+            val today = getCurrentDate()
+            TrackingLogStorage.add(applicationContext, "EmailScheduler", "SendReportWorker: fetching stats for $today")
+            val stats = usageStatsRepository.getDailyUsage(today)
+            TrackingLogStorage.add(applicationContext, "EmailScheduler", "SendReportWorker: ${stats.apps.size} apps, total=${stats.totalUsageMs}ms")
+
+            // Build report body with real stats
+            val subject = "Fox Control: Отчёт за $today"
+            val body = buildString {
+                appendLine("Отчёт за $today")
+                appendLine("========================")
+                appendLine("")
+                appendLine("Общее время использования: ${formatDuration(stats.totalUsageMs)}")
+                appendLine("")
+
+                if (stats.apps.isNotEmpty()) {
+                    appendLine("Список приложений:")
+                    appendLine("-".repeat(30))
+                    stats.apps.forEach { app ->
+                        appendLine("- ${app.appName}: ${formatDuration(app.totalDurationMs)}")
+                    }
+                } else {
+                    appendLine("Активности не зафиксировано.")
+                }
+            }
+
+            // Update notification
+            setForeground(ForegroundInfo(NOTIFICATION_ID, buildNotification("Отправка ${activeRecipients.size} получателям...")))
+
+            TrackingLogStorage.add(applicationContext, "EmailScheduler", "SendReportWorker: sending to ${activeRecipients.size} recipients...")
+
+            // Send emails
+            val results = emailSender.sendBulkEmail(
+                config = config,
+                recipients = activeRecipients.map { it.email },
+                subject = subject,
+                body = body
+            )
+
+            val successCount = results.count { it.success }
+            val failedCount = results.count { !it.success }
+
+            TrackingLogStorage.add(applicationContext, "EmailScheduler", "SendReportWorker: sent $successCount/${activeRecipients.size} (failed=$failedCount)")
+
+            // Update notification
+            setForeground(ForegroundInfo(NOTIFICATION_ID, buildNotification(
+                if (successCount > 0) "Отправлено $successCount/${activeRecipients.size}" else "Ошибка отправки"
+            )))
+
+            // Save log
             val log = ReportSendLogEntity(
                 date = getCurrentDate(),
-                status = "FAILED",
-                errorMessage = "No active recipients",
-                recipientCount = 0
+                status = if (failedCount == 0) "SUCCESS" else "PARTIAL",
+                errorMessage = if (failedCount > 0) {
+                    results.filterNot { it.success }.firstOrNull()?.message
+                } else null,
+                recipientCount = activeRecipients.size
             )
             emailRepository.saveLog(log)
-            return Result.failure()
-        }
 
-        TrackingLogStorage.add("EmailScheduler", "SendReportWorker: ${activeRecipients.size} recipients found")
-
-        // Get today's usage stats
-        val today = getCurrentDate()
-        TrackingLogStorage.add("EmailScheduler", "SendReportWorker: fetching stats for $today")
-        val stats = usageStatsRepository.getDailyUsage(today)
-        TrackingLogStorage.add("EmailScheduler", "SendReportWorker: ${stats.apps.size} apps, total=${stats.totalUsageMs}ms")
-
-        // Build report body with real stats
-        val subject = "Fox Control: Отчёт за $today"
-        val body = buildString {
-            appendLine("Отчёт за $today")
-            appendLine("========================")
-            appendLine("")
-            appendLine("Общее время использования: ${formatDuration(stats.totalUsageMs)}")
-            appendLine("")
-
-            if (stats.apps.isNotEmpty()) {
-                appendLine("Список приложений:")
-                appendLine("-".repeat(30))
-                stats.apps.forEach { app ->
-                    appendLine("- ${app.appName}: ${formatDuration(app.totalDurationMs)}")
-                }
+            return if (successCount > 0) {
+                TrackingLogStorage.add(applicationContext, "EmailScheduler", "SendReportWorker: DONE success")
+                Result.success()
             } else {
-                appendLine("Активности не зафиксировано.")
+                TrackingLogStorage.add(applicationContext, "EmailScheduler", "SendReportWorker: DONE all failed")
+                Result.failure()
             }
-        }
-
-        // Update notification
-        setForeground(ForegroundInfo(NOTIFICATION_ID, buildNotification("Отправка ${activeRecipients.size} получателям...")))
-
-        TrackingLogStorage.add("EmailScheduler", "SendReportWorker: sending to ${activeRecipients.size} recipients...")
-
-        // Send emails
-        val results = emailSender.sendBulkEmail(
-            config = config,
-            recipients = activeRecipients.map { it.email },
-            subject = subject,
-            body = body
-        )
-
-        val successCount = results.count { it.success }
-        val failedCount = results.count { !it.success }
-
-        TrackingLogStorage.add("EmailScheduler", "SendReportWorker: sent $successCount/${activeRecipients.size} (failed=$failedCount)")
-
-        // Update notification
-        setForeground(ForegroundInfo(NOTIFICATION_ID, buildNotification(
-            if (successCount > 0) "Отправлено $successCount/${activeRecipients.size}" else "Ошибка отправки"
-        )))
-
-        // Save log
-        val log = ReportSendLogEntity(
-            date = getCurrentDate(),
-            status = if (failedCount == 0) "SUCCESS" else "PARTIAL",
-            errorMessage = if (failedCount > 0) {
-                results.filterNot { it.success }.firstOrNull()?.message
-            } else null,
-            recipientCount = activeRecipients.size
-        )
-        emailRepository.saveLog(log)
-
-        return if (successCount > 0) {
-            TrackingLogStorage.add("EmailScheduler", "SendReportWorker: DONE success")
-            Result.success()
-        } else {
-            TrackingLogStorage.add("EmailScheduler", "SendReportWorker: DONE all failed")
-            Result.failure()
+        } catch (e: Exception) {
+            // Catch-all for any unhandled exceptions
+            TrackingLogStorage.add(applicationContext, "EmailScheduler", "SendReportWorker: UNHANDLED ERROR: ${e.message}")
+            Log.e(TAG, "SendReportWorker failed with exception", e)
+            return Result.failure()
         }
     }
 
