@@ -3,6 +3,7 @@ package com.andrew.foxcontrol.core.tracking
 import android.content.Context
 import android.os.Build
 import android.util.Log
+import java.io.RandomAccessFile
 import java.text.SimpleDateFormat
 import java.util.*
 
@@ -10,20 +11,25 @@ object TrackingLogStorage {
 
     private const val TAG = "FoxControlDebug"
     private const val LOG_FILE_NAME = "foxcontrol_tracking.log"
-    private const val MAX_LOG_LINES = 500
+    private const val MAX_LOG_LINES = 1000
 
+    // In-memory buffer for fast UI access (filled from file on init)
     private val logBuffer = mutableListOf<String>()
-    private lateinit var logFile: java.io.File
+    private var logFile: java.io.File? = null
     private var contextRef: Context? = null
+    private var initialized = false
 
     fun init(context: Context) {
         try {
-            logFile = java.io.File(context.filesDir, LOG_FILE_NAME)
+            val file = java.io.File(context.filesDir, LOG_FILE_NAME)
+            logFile = file
             contextRef = context
-            // Try to load existing log
-            if (logFile.exists()) {
+            initialized = true
+
+            // Load existing log into buffer
+            if (file.exists()) {
                 try {
-                    logFile.readText().lines().filter { it.isNotBlank() }.forEach { logBuffer.add(it) }
+                    file.readLines().filter { it.isNotBlank() }.take(MAX_LOG_LINES).forEach { logBuffer.add(it) }
                 } catch (e: Exception) {
                     Log.e(TAG, "Failed to load log file", e)
                 }
@@ -34,52 +40,85 @@ object TrackingLogStorage {
         }
     }
 
+    /**
+     * Add a log entry. Auto-initializes file if not yet initialized.
+     * This ensures logs from Worker processes (separate JVM) are persisted.
+     */
     fun add(tag: String, message: String) {
         try {
             val timestamp = SimpleDateFormat("HH:mm:ss.SSS", Locale.getDefault()).format(Date())
             val line = "[$timestamp] [$tag] $message"
-            
-            // Add to in-memory buffer (always works)
+
+            // Auto-initialize file if needed (for Worker processes)
+            if (!initialized) {
+                try {
+                    val context = contextRef ?: return // Can't initialize without context
+                    logFile = java.io.File(context.filesDir, LOG_FILE_NAME)
+                    initialized = true
+                    // Load existing lines
+                    if (logFile!!.exists()) {
+                        logFile!!.readLines().filter { it.isNotBlank() }.take(MAX_LOG_LINES).forEach { logBuffer.add(it) }
+                    }
+                } catch (e: Exception) {
+                    Log.e(TAG, "Auto-init failed: ${e.message}")
+                    return
+                }
+            }
+
+            // Add to in-memory buffer
             logBuffer.add(0, line)
             if (logBuffer.size > MAX_LOG_LINES) {
                 logBuffer.removeAt(logBuffer.size - 1)
             }
 
-            // Try to persist to file
-            if (::logFile.isInitialized) {
-                val existing = if (logFile.exists()) logFile.readText() else ""
-                val newContent = line + "\n" + existing
-                val allLines = newContent.lines().filter { it.isNotBlank() }
-                val truncated = if (allLines.size > MAX_LOG_LINES) allLines.subList(0, MAX_LOG_LINES) else allLines
-                logFile.writeText(truncated.joinToString("\n"))
+            // Append to file (append is atomic and fast)
+            logFile?.let { file ->
+                try {
+                    RandomAccessFile(file, "rw").use { raf ->
+                        raf.seek(raf.length())
+                        raf.writeBytes(line + "\n")
+                    }
+                } catch (e: Exception) {
+                    Log.e(TAG, "Failed to write log file: ${e.message}")
+                }
             }
         } catch (e: Exception) {
-            // Log to system logcat for debugging
             Log.e(TAG, "TrackingLogStorage.add failed: ${e.message}")
         }
     }
 
+    /**
+     * Get all logs — always reads from file to ensure consistency
+     * across processes (e.g., Worker processes).
+     */
     fun getAllLogs(): String {
-        if (logBuffer.isEmpty()) {
-            // Try to read from file as fallback
-            if (::logFile.isInitialized && logFile.exists()) {
-                try {
-                    return logFile.readText()
-                } catch (e: Exception) {
-                    // ignore
+        // Always try to read from file first (authoritative source)
+        if (logFile?.exists() == true) {
+            try {
+                val lines = logFile!!.readLines().filter { it.isNotBlank() }
+                if (lines.isNotEmpty()) {
+                    // Take last MAX_LOG_LINES to handle overflow
+                    val recent = if (lines.size > MAX_LOG_LINES) lines.subList(lines.size - MAX_LOG_LINES, lines.size) else lines
+                    return recent.joinToString("\n")
                 }
+            } catch (e: Exception) {
+                Log.e(TAG, "Failed to read log file: ${e.message}")
             }
+        }
+
+        // Fallback to in-memory buffer
+        if (logBuffer.isEmpty()) {
             return "Нет записей лога\n\nПричина: логгер инициализирован, но ни одного события не произошло.\nЭто означает, что сервис не запущен или упал при запуске."
         }
         return logBuffer.joinToString("\n")
     }
 
     fun getLogStats(): String {
-        if (logBuffer.isEmpty()) {
+        val lines = getAllLogs().split("\n").filter { it.isNotBlank() }
+        if (lines.isEmpty()) {
             return "Всего записей: 0\nТеги: (пусто)\n\nКомпоненты:\n  Service: ✗ не запущен\n  TrackingJob: ✗ не запущен\n  Repository: ✗ не вызывался\n  Permission: ✗ не проверяется\n  UsageStats: ✗ не опрашивается\n\n⚠ Лог пуст — сервис не запускался или упал при старте.\nПроверьте вкладку 'Анализ' для рекомендаций."
         }
 
-        val lines = logBuffer.filter { it.isNotBlank() }
         val tags = lines.map { line ->
             val start = line.indexOf('[') + 1
             val end = line.indexOf(']', start)
@@ -101,6 +140,7 @@ object TrackingLogStorage {
         val hasRepo = tags.contains("Repo")
         val hasPermission = tags.contains("Permission")
         val hasUsageStats = tags.contains("UsageStats")
+        val hasEmailScheduler = tags.contains("EmailScheduler")
 
         sb.append("\nКомпоненты:\n")
         sb.append("  Service: ${if (hasService) "✓ работает" else "✗ не запущен"}\n")
@@ -108,6 +148,7 @@ object TrackingLogStorage {
         sb.append("  Repository: ${if (hasRepo) "✓ работает" else "✗ не вызывался"}\n")
         sb.append("  Permission: ${if (hasPermission) "✓ проверяется" else "✗ не проверяется"}\n")
         sb.append("  UsageStats: ${if (hasUsageStats) "✓ опрашивается" else "✗ не опрашивается"}\n")
+        sb.append("  EmailScheduler: ${if (hasEmailScheduler) "✓ работает" else "✗ не вызывался"}\n")
 
         return sb.toString()
     }
