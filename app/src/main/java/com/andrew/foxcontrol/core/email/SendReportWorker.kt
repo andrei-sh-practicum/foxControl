@@ -12,6 +12,7 @@ import androidx.work.WorkerParameters
 import com.andrew.foxcontrol.R
 import com.andrew.foxcontrol.data.local.entity.ReportSendLogEntity
 import com.andrew.foxcontrol.data.repository.EmailRepository
+import com.andrew.foxcontrol.ui.common.formatDuration
 import dagger.assisted.Assisted
 import dagger.assisted.AssistedInject
 import java.text.SimpleDateFormat
@@ -22,7 +23,8 @@ class SendReportWorker @AssistedInject constructor(
     @Assisted context: Context,
     @Assisted params: WorkerParameters,
     private val emailRepository: EmailRepository,
-    private val emailSender: EmailSender
+    private val emailSender: EmailSender,
+    private val usageStatsRepository: com.andrew.foxcontrol.domain.repository.UsageStatsRepository
 ) : CoroutineWorker(context, params) {
 
     companion object {
@@ -76,15 +78,28 @@ class SendReportWorker @AssistedInject constructor(
                 return Result.failure()
             }
 
-            // Prepare report body (placeholder - in production, fetch usage stats)
-            val subject = "Fox Control: Отчёт за ${getCurrentDate()}"
+            // Get today's usage stats
+            val today = getCurrentDate()
+            val stats = usageStatsRepository.getDailyUsage(today)
+
+            // Build report body with real stats
+            val subject = "Fox Control: Отчёт за $today"
             val body = buildString {
-                appendLine("Отчёт за ${getCurrentDate()}")
+                appendLine("Отчёт за $today")
                 appendLine("========================")
                 appendLine("")
-                appendLine("Здесь будет статистика использования приложений.")
+                appendLine("Общее время использования: ${formatDuration(stats.totalUsageMs)}")
                 appendLine("")
-                appendLine("Это тестовое письмо.")
+
+                if (stats.apps.isNotEmpty()) {
+                    appendLine("Список приложений:")
+                    appendLine("-".repeat(30))
+                    stats.apps.forEach { app ->
+                        appendLine("- ${app.appName}: ${formatDuration(app.totalDurationMs)}")
+                    }
+                } else {
+                    appendLine("Активности не зафиксировано.")
+                }
             }
 
             // Update notification

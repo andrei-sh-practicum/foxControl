@@ -6,6 +6,7 @@ import android.content.Context
 import android.content.Intent
 import android.util.Log
 import com.andrew.foxcontrol.core.email.ReportAlarmReceiver
+import com.andrew.foxcontrol.core.tracking.TrackingLogStorage
 import dagger.hilt.android.qualifiers.ApplicationContext
 import java.util.Calendar
 import javax.inject.Inject
@@ -64,9 +65,13 @@ class EmailScheduler @Inject constructor(
                 pendingIntent
             )
 
-            Log.d(TAG, "Daily report scheduled at ${String.format("%02d:%02d", hour, minute)}")
+            val timeStr = String.format("%02d:%02d", hour, minute)
+            Log.d(TAG, "Daily report scheduled at $timeStr")
+            TrackingLogStorage.add(TAG, "Email report scheduled for $timeStr")
         } catch (e: Exception) {
-            Log.e(TAG, "Failed to schedule report", e)
+            val msg = "Failed to schedule report: ${e.message}"
+            Log.e(TAG, msg, e)
+            TrackingLogStorage.add(TAG, "Email scheduler FAILED: $msg")
         }
     }
 
@@ -84,6 +89,7 @@ class EmailScheduler @Inject constructor(
             )
             alarmManager.cancel(pendingIntent)
             Log.d(TAG, "Scheduled report cancelled")
+            TrackingLogStorage.add(TAG, "Email report cancelled")
         } catch (e: Exception) {
             Log.e(TAG, "Failed to cancel report", e)
         }
