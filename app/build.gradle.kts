@@ -27,7 +27,11 @@ android {
         versionCode = 26
         versionName = "1.2.9"
 
-        resValue("string", "smtp_app_password_default", localProperties.getProperty("SMTP_APP_PASSWORD", "CHANGE_ME_IN_PRODUCTION"))
+        buildConfigField(
+            "String",
+            "SMTP_APP_PASSWORD_DEFAULT",
+            "\"${localProperties.getProperty("SMTP_APP_PASSWORD", "CHANGE_ME_IN_PRODUCTION")}\""
+        )
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables {

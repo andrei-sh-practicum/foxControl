@@ -3,6 +3,7 @@ package com.andrew.foxcontrol.ui.settings
 import androidx.compose.runtime.Immutable
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.andrew.foxcontrol.BuildConfig
 import com.andrew.foxcontrol.core.email.EmailSender
 import com.andrew.foxcontrol.core.email.EmailScheduler
 import com.andrew.foxcontrol.data.local.entity.EmailRecipientEntity
@@ -22,20 +23,9 @@ object BrevoDefaults {
     const val SMTP_HOST = "smtp-relay.brevo.com"
     const val SMTP_PORT = "587"
     const val SMTP_LOGIN = "b84011001@smtp-brevo.com"
-    const val SMTP_APP_PASSWORD = "CHANGE_ME_IN_PRODUCTION"
+    val SMTP_APP_PASSWORD: String
+        get() = BuildConfig.SMTP_APP_PASSWORD_DEFAULT
     const val FROM_EMAIL = "b84011001@smtp-brevo.com"
-
-    fun getSmtpAppPassword(context: android.content.Context): String {
-        try {
-            val resId = context.resources.getIdentifier("smtp_app_password_default", "string", context.packageName)
-            if (resId != 0) {
-                return context.getString(resId)
-            }
-        } catch (e: Exception) {
-            // Fall back to default
-        }
-        return SMTP_APP_PASSWORD
-    }
 }
 
 @HiltViewModel

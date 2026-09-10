@@ -8,6 +8,7 @@ import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.intPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
+import com.andrew.foxcontrol.BuildConfig
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 
@@ -28,22 +29,11 @@ object EmailDefaults {
     const val SMTP_HOST_DEFAULT = "smtp-relay.brevo.com"
     const val SMTP_PORT_DEFAULT = 587
     const val SMTP_LOGIN_DEFAULT = "b84011001@smtp-brevo.com"
-    const val SMTP_APP_PASSWORD_DEFAULT = "CHANGE_ME_IN_PRODUCTION"
+    val SMTP_APP_PASSWORD_DEFAULT: String
+        get() = BuildConfig.SMTP_APP_PASSWORD_DEFAULT
     const val FROM_EMAIL_DEFAULT = "b84011001@smtp-brevo.com"
     const val SEND_TIME_HOUR_DEFAULT = 20
     const val SEND_TIME_MINUTE_DEFAULT = 0
-
-    fun getSmtpAppPasswordDefault(context: android.content.Context): String {
-        try {
-            val resId = context.resources.getIdentifier("smtp_app_password_default", "string", context.packageName)
-            if (resId != 0) {
-                return context.getString(resId)
-            }
-        } catch (e: Exception) {
-            // Fall back to default
-        }
-        return SMTP_APP_PASSWORD_DEFAULT
-    }
 }
 
 class EmailSettingsRepository(private val context: Context) {
@@ -67,7 +57,7 @@ class EmailSettingsRepository(private val context: Context) {
     }
 
     val smtpAppPassword: Flow<String> = dataStore.data.map { preferences ->
-        preferences[EmailSettingsKeys.SMTP_APP_PASSWORD] ?: EmailDefaults.getSmtpAppPasswordDefault(context)
+        preferences[EmailSettingsKeys.SMTP_APP_PASSWORD] ?: EmailDefaults.SMTP_APP_PASSWORD_DEFAULT
     }
 
     val fromEmail: Flow<String> = dataStore.data.map { preferences ->
