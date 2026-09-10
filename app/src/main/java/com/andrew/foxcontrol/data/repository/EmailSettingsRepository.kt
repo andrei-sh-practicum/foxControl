@@ -28,7 +28,7 @@ object EmailDefaults {
     const val SMTP_HOST_DEFAULT = "smtp-relay.brevo.com"
     const val SMTP_PORT_DEFAULT = 587
     const val SMTP_LOGIN_DEFAULT = "b84011001@smtp-brevo.com"
-    const val SMTP_APP_PASSWORD_DEFAULT = "CHANGE_ME_IN_PRODUCTION"
+    const val SMTP_APP_PASSWORD_DEFAULT = BuildConfig.SMTP_APP_PASSWORD_DEFAULT
     const val FROM_EMAIL_DEFAULT = "b84011001@smtp-brevo.com"
     const val SEND_TIME_HOUR_DEFAULT = 20
     const val SEND_TIME_MINUTE_DEFAULT = 0

@@ -6,7 +6,15 @@ plugins {
     id("com.google.dagger.hilt.android")
 }
 
-import java.io.File
+import java.io.FileInputStream
+import java.util.Properties
+
+val localProperties = Properties().apply {
+    val localFile = rootProject.file("local.properties")
+    if (localFile.exists()) {
+        load(FileInputStream(localFile))
+    }
+}
 
 android {
     namespace = "com.andrew.foxcontrol"
@@ -18,6 +26,12 @@ android {
         targetSdk = 35
         versionCode = 26
         versionName = "1.2.9"
+
+        buildConfigField(
+            "String",
+            "SMTP_APP_PASSWORD_DEFAULT",
+            "\"${localProperties.getProperty("SMTP_APP_PASSWORD", "CHANGE_ME_IN_PRODUCTION")}\""
+        )
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables {
