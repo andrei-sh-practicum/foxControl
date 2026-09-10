@@ -1,0 +1,35 @@
+# Build output
+app/build/
+build/
+.gradle/
+.idea/
+*.iml
+*.kotlin
+
+# Local configuration
+local.properties
+
+# Android Studio
+captures/
+.externalNativeBuild
+.cxx
+*.apk
+*.ap_
+*.orig
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Android Profiling
+*.hprof
+
+# Temp files
+*.tmp
+*.temp
+
+# Android resource caches
+app/src/main/res/raw/.keep
+
+# Gradle wrapper jar
+gradle/wrapper/gradle-wrapper.jar

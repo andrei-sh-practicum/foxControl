@@ -1,0 +1,226 @@
+package com.andrew.foxcontrol.ui.onboarding
+
+import android.widget.Toast
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.Info
+import androidx.compose.material.icons.filled.Lock
+import androidx.compose.material.icons.filled.Notifications
+import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material3.Button
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.unit.dp
+import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.andrew.foxcontrol.core.permissions.OnboardingPermissions
+
+@Composable
+fun OnboardingScreen(
+    onNavigationCompleted: () -> Unit,
+    viewModel: OnboardingViewModel = hiltViewModel()
+) {
+    val state by viewModel.state.collectAsStateWithLifecycle()
+    val context = LocalContext.current
+
+    OnboardingContent(
+        state = state,
+        onNavigationCompleted = onNavigationCompleted,
+        onOpenUsageStats = viewModel::openUsageStatsSettings,
+        onOpenOverlay = viewModel::openOverlayPermissionSettings,
+        onOpenBattery = viewModel::openBatteryOptimizationSettings,
+        onCheckPermissions = viewModel::onCheckPermissions
+    )
+
+    // Navigate when done
+    if (state.status == OnboardingStatus.Done) {
+        LaunchedEffect(Unit) {
+            onNavigationCompleted()
+        }
+    }
+}
+
+@Composable
+private fun OnboardingContent(
+    state: OnboardingState,
+    onNavigationCompleted: () -> Unit,
+    onOpenUsageStats: () -> Unit,
+    onOpenOverlay: () -> Unit,
+    onOpenBattery: () -> Unit,
+    onCheckPermissions: () -> Unit
+) {
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .verticalScroll(rememberScrollState())
+            .padding(16.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(16.dp)
+    ) {
+        // Title
+        Text(
+            text = "🦊 Fox Control",
+            style = MaterialTheme.typography.headlineLarge,
+            fontWeight = FontWeight.Bold
+        )
+        Text(
+            text = "Контроль времени использования смартфона",
+            style = MaterialTheme.typography.bodyLarge,
+            textAlign = TextAlign.Center,
+            modifier = Modifier.padding(bottom = 8.dp)
+        )
+
+        when (state.status) {
+            OnboardingStatus.CheckingPermissions -> {
+                CircularProgressIndicator()
+                Text(
+                    text = "Проверка разрешений...",
+                    style = MaterialTheme.typography.bodyLarge,
+                    modifier = Modifier.padding(top = 16.dp)
+                )
+            }
+            OnboardingStatus.NeedsPermissions -> {
+                PermissionCard(
+                    icon = Icons.Default.Settings,
+                    title = "Доступ к использованию приложений",
+                    description = "Fox Control нужен доступ к статистике использования приложений для отслеживания времени.",
+                    granted = state.permissions.usageStats,
+                    onAction = onOpenUsageStats,
+                    actionLabel = "Открыть настройки"
+                )
+
+                PermissionCard(
+                    icon = Icons.Default.Lock,
+                    title = "Поверх других приложений",
+                    description = "Разрешение нужно для показа предупреждений о превышении лимита поверх других приложений.",
+                    granted = state.permissions.overlay,
+                    onAction = onOpenOverlay,
+                    actionLabel = "Открыть настройки"
+                )
+
+                PermissionCard(
+                    icon = Icons.Default.Notifications,
+                    title = "Уведомления",
+                    description = "Нужно для показа уведомлений о статистике и предупреждениях.",
+                    granted = state.permissions.notifications,
+                    onAction = null,
+                    actionLabel = null
+                )
+
+                PermissionCard(
+                    icon = Icons.Default.Info,
+                    title = "Экономия батареи (опционально)",
+                    description = "Рекомендуется отключить оптимизацию батареи для стабильной работы в фоне.",
+                    granted = state.permissions.batteryOptimization,
+                    onAction = onOpenBattery,
+                    actionLabel = "Отключить оптимизацию"
+                )
+
+                Spacer(modifier = Modifier.height(16.dp))
+
+                Button(
+                    onClick = onCheckPermissions,
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Text("Проверить ещё раз")
+                }
+
+                Text(
+                    text = "Без этих разрешений приложение не сможет работать корректно",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.error,
+                    textAlign = TextAlign.Center,
+                    modifier = Modifier.padding(top = 8.dp)
+                )
+            }
+            OnboardingStatus.Done -> {
+                CircularProgressIndicator()
+                Text(
+                    text = "Готово!",
+                    style = MaterialTheme.typography.bodyLarge,
+                    modifier = Modifier.padding(top = 16.dp)
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun PermissionCard(
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    title: String,
+    description: String,
+    granted: Boolean,
+    onAction: (() -> Unit)?,
+    actionLabel: String?
+) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(
+            containerColor = if (granted) {
+                MaterialTheme.colorScheme.primaryContainer
+            } else {
+                MaterialTheme.colorScheme.surfaceVariant
+            }
+        )
+    ) {
+        Column(
+            modifier = Modifier.padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            Column(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalAlignment = Alignment.Start
+            ) {
+                Text(
+                    text = title,
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Medium
+                )
+                Text(
+                    text = description,
+                    style = MaterialTheme.typography.bodyMedium
+                )
+            }
+
+            if (granted) {
+                Text(
+                    text = "✓ Предоставлено",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.primary,
+                    fontWeight = FontWeight.Bold
+                )
+            } else if (onAction != null && actionLabel != null) {
+                OutlinedButton(
+                    onClick = onAction,
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Icon(icon, contentDescription = null)
+                    Text(actionLabel)
+                }
+            }
+        }
+    }
+}

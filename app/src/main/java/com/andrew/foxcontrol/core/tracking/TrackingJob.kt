@@ -1,0 +1,205 @@
+package com.andrew.foxcontrol.core.tracking
+
+import android.app.usage.UsageStats
+import android.app.usage.UsageStatsManager
+import android.content.Context
+import android.content.pm.PackageManager
+import android.util.Log
+import com.andrew.foxcontrol.core.alerts.AlertManager
+import com.andrew.foxcontrol.core.tracking.TrackingLogStorage.add
+import com.andrew.foxcontrol.data.repository.UsageStatsRepositoryImpl
+import kotlinx.coroutines.DelicateCoroutinesApi
+import kotlinx.coroutines.GlobalScope
+import kotlinx.coroutines.launch
+import java.util.Timer
+import java.util.TimerTask
+import java.util.concurrent.ConcurrentHashMap
+
+class TrackingJob(
+    private val context: Context,
+    private val usageStatsRepository: UsageStatsRepositoryImpl,
+    private val alertManager: AlertManager
+) {
+    private var isRunning = false
+    private val usageStatsManager = context.getSystemService(Context.USAGE_STATS_SERVICE) as UsageStatsManager
+    private var heartbeatTimer: Timer? = null
+    private var usageStatsTimer: Timer? = null
+
+    // Track last known foreground time per package to compute deltas
+    private val lastForegroundTime = ConcurrentHashMap<String, Long>()
+    // Track the last poll end time per package to compute accurate deltas
+    private val lastPollEndTime = ConcurrentHashMap<String, Long>()
+
+    @OptIn(DelicateCoroutinesApi::class)
+    fun start() {
+        if (isRunning) {
+            TrackingLogStorage.add("Job", "TrackingJob already running, skipping start")
+            return
+        }
+        isRunning = true
+        TrackingLogStorage.add("Service", "TrackingJob STARTED")
+
+        // Heartbeat timer
+        heartbeatTimer = Timer("heartbeat").apply {
+            scheduleAtFixedRate(object : TimerTask() {
+                override fun run() {
+                    GlobalScope.launch {
+                        try {
+                            TrackingLogStorage.add("Repo", "recordHeartbeat() called")
+                            usageStatsRepository.recordHeartbeat()
+                            TrackingLogStorage.add("Repo", "Heartbeat recorded OK")
+                        } catch (e: Exception) {
+                            TrackingLogStorage.add("Repo", "Heartbeat ERROR: ${e.message}")
+                            TrackingLogStorage.add("Repo", e.stackTraceToString())
+                        }
+                    }
+                }
+            }, 0, HEARTBEAT_INTERVAL_MS)
+        }
+
+        // Usage stats polling timer
+        usageStatsTimer = Timer("usage_poll").apply {
+            scheduleAtFixedRate(object : TimerTask() {
+                override fun run() {
+                    try {
+                        pollUsageStats()
+                    } catch (e: Exception) {
+                        TrackingLogStorage.add("Job", "pollUsageStats ERROR: ${e.message}")
+                        TrackingLogStorage.add("Job", e.stackTraceToString())
+                    }
+                }
+            }, 0, USAGE_STATS_POLL_INTERVAL_MS)
+        }
+    }
+
+    fun stop() {
+        isRunning = false
+        Log.d(TAG, "TrackingJob stopped")
+        heartbeatTimer?.cancel()
+        usageStatsTimer?.cancel()
+    }
+
+    @OptIn(DelicateCoroutinesApi::class)
+    private fun pollUsageStats() {
+        val endTime = System.currentTimeMillis()
+        val startTime = endTime - USAGE_STATS_POLL_INTERVAL_MS
+
+        TrackingLogStorage.add("UsageStats", "queryUsageStats(startTime=$startTime, endTime=$endTime)")
+
+        // Use queryUsageStats for per-package usage time
+        val usageStatsList = usageStatsManager.queryUsageStats(
+            3, // INTERVAL_DAY
+            startTime,
+            endTime
+        )
+
+        if (usageStatsList.isNullOrEmpty()) {
+            TrackingLogStorage.add("UsageStats", "queryUsageStats returned NULL/EMPTY — no apps found")
+            return
+        }
+
+        TrackingLogStorage.add("UsageStats", "queryUsageStats returned ${usageStatsList.size} apps")
+        TrackingLogStorage.add("UsageStats", "Apps: ${usageStatsList.map { it.packageName }.joinToString(", ")}")
+
+        for (usageStats in usageStatsList) {
+            val packageName = usageStats.packageName
+            val currentForeground = usageStats.totalTimeInForeground
+
+            // Compute delta: usage since last poll
+            val previousTime = lastForegroundTime[packageName]
+            val previousPollEnd = lastPollEndTime[packageName]
+            var deltaMs: Long
+
+            if (previousTime != null && currentForeground >= previousTime) {
+                // App was in foreground during this interval
+                deltaMs = currentForeground - previousTime
+            } else if (previousTime != null && currentForeground < previousTime) {
+                // Time went backwards (app was killed or device rebooted)
+                // Use the previous poll's end time to compute delta from last known state
+                val lastKnownForeground = previousTime
+                if (previousPollEnd != null) {
+                    // App was in foreground since last poll, but time went backwards
+                    // Assume the app was in foreground until the time went backwards
+                    deltaMs = 0L
+                    TrackingLogStorage.add("UsageStats", "App $packageName: time went backwards (killed?), resetting")
+                } else {
+                    deltaMs = 0L
+                }
+                // Reset tracking for this app
+                lastForegroundTime[packageName] = currentForeground
+                lastPollEndTime[packageName] = endTime
+                continue
+            } else {
+                // First time seeing this app - initialize tracking
+                deltaMs = 0L
+                TrackingLogStorage.add("UsageStats", "App $packageName: first time seeing, initializing tracking")
+            }
+
+            // Update tracking state
+            lastForegroundTime[packageName] = currentForeground
+            lastPollEndTime[packageName] = endTime
+
+            if (deltaMs > 0) {
+                val appName = getAppName(packageName)
+                TrackingLogStorage.add("UsageStats", "App: $packageName - ${appName} - +${deltaMs}ms (total: $currentForeground)ms")
+
+                // Save session to Room
+                GlobalScope.launch {
+                    try {
+                        TrackingLogStorage.add("Repo", "trackUsageSession(packageName=$packageName, durationMs=$deltaMs)")
+                        usageStatsRepository.trackUsageSession(
+                            packageName = packageName,
+                            appName = appName,
+                            startTime = endTime - deltaMs,
+                            endTime = endTime,
+                            durationMs = deltaMs,
+                            isEntertainment = false
+                        )
+                        TrackingLogStorage.add("Repo", "trackUsageSession OK: $packageName saved")
+                    } catch (e: Exception) {
+                        TrackingLogStorage.add("Repo", "trackUsageSession ERROR: ${e.message}")
+                        TrackingLogStorage.add("Repo", e.stackTraceToString())
+                    }
+                }
+            } else {
+                TrackingLogStorage.add("UsageStats", "App: $packageName - deltaMs=0, skipping")
+            }
+        }
+
+        // Check limits and show alerts
+        checkAlerts()
+    }
+
+    @OptIn(DelicateCoroutinesApi::class)
+    private fun checkAlerts() {
+        GlobalScope.launch {
+            try {
+                alertManager.checkAndShowAlerts()
+            } catch (e: Exception) {
+                Log.e(TAG, "Error checking alerts", e)
+            }
+        }
+    }
+
+    private fun getAppName(packageName: String): String {
+        return try {
+            val pm = context.packageManager
+            val appInfo = pm.getApplicationInfo(packageName, PackageManager.GET_META_DATA)
+            val label = pm.getApplicationLabel(appInfo)
+            if (label != null && label.isNotEmpty()) {
+                label.toString()
+            } else {
+                packageName
+            }
+        } catch (e: Exception) {
+            android.util.Log.e("TrackingJob", "Failed to get app name for $packageName: ${e.message}")
+            packageName
+        }
+    }
+
+    companion object {
+        const val TAG = "TrackingJob"
+        const val HEARTBEAT_INTERVAL_MS = 60_000L // 1 minute
+        const val USAGE_STATS_POLL_INTERVAL_MS = 60_000L // 1 minute
+    }
+}
