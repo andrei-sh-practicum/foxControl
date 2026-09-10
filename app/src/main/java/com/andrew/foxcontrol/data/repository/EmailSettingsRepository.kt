@@ -29,11 +29,20 @@ object EmailDefaults {
     const val SMTP_HOST_DEFAULT = "smtp-relay.brevo.com"
     const val SMTP_PORT_DEFAULT = 587
     const val SMTP_LOGIN_DEFAULT = "b84011001@smtp-brevo.com"
-    val SMTP_APP_PASSWORD_DEFAULT: String
-        get() = BuildConfig.SMTP_APP_PASSWORD_DEFAULT
+    const val SMTP_APP_PASSWORD_DEFAULT = "CHANGE_ME_IN_PRODUCTION"
     const val FROM_EMAIL_DEFAULT = "b84011001@smtp-brevo.com"
     const val SEND_TIME_HOUR_DEFAULT = 20
     const val SEND_TIME_MINUTE_DEFAULT = 0
+    
+    fun getSmtpAppPassword(): String {
+        try {
+            val configClass = Class.forName("com.andrew.foxcontrol.BuildConfig")
+            val field = configClass.getDeclaredField("SMTP_APP_PASSWORD_DEFAULT")
+            return field.get(null) as String
+        } catch (e: Exception) {
+            return SMTP_APP_PASSWORD_DEFAULT
+        }
+    }
 }
 
 class EmailSettingsRepository(private val context: Context) {
@@ -57,7 +66,7 @@ class EmailSettingsRepository(private val context: Context) {
     }
 
     val smtpAppPassword: Flow<String> = dataStore.data.map { preferences ->
-        preferences[EmailSettingsKeys.SMTP_APP_PASSWORD] ?: EmailDefaults.SMTP_APP_PASSWORD_DEFAULT
+        preferences[EmailSettingsKeys.SMTP_APP_PASSWORD] ?: EmailDefaults.getSmtpAppPassword()
     }
 
     val fromEmail: Flow<String> = dataStore.data.map { preferences ->

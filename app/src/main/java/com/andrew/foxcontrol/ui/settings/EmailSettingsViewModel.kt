@@ -23,9 +23,18 @@ object BrevoDefaults {
     const val SMTP_HOST = "smtp-relay.brevo.com"
     const val SMTP_PORT = "587"
     const val SMTP_LOGIN = "b84011001@smtp-brevo.com"
-    val SMTP_APP_PASSWORD: String
-        get() = BuildConfig.SMTP_APP_PASSWORD_DEFAULT
+    const val SMTP_APP_PASSWORD = "CHANGE_ME_IN_PRODUCTION"
     const val FROM_EMAIL = "b84011001@smtp-brevo.com"
+    
+    fun getSmtpAppPassword(): String {
+        try {
+            val configClass = Class.forName("com.andrew.foxcontrol.BuildConfig")
+            val field = configClass.getDeclaredField("SMTP_APP_PASSWORD_DEFAULT")
+            return field.get(null) as String
+        } catch (e: Exception) {
+            return SMTP_APP_PASSWORD
+        }
+    }
 }
 
 @HiltViewModel
@@ -52,7 +61,7 @@ class EmailSettingsViewModel @Inject constructor(
                 smtpHost = settings["smtp_host"] ?: BrevoDefaults.SMTP_HOST,
                 smtpPort = settings["smtp_port"] ?: BrevoDefaults.SMTP_PORT,
                 smtpLogin = settings["smtp_login"] ?: BrevoDefaults.SMTP_LOGIN,
-                smtpAppPassword = settings["smtp_app_password"] ?: BrevoDefaults.SMTP_APP_PASSWORD,
+                smtpAppPassword = settings["smtp_app_password"] ?: BrevoDefaults.getSmtpAppPassword(),
                 fromEmail = settings["from_email"] ?: BrevoDefaults.FROM_EMAIL,
                 sendTimeHour = settings["send_time_hour"]?.toIntOrNull() ?: 20,
                 sendTimeMinute = settings["send_time_minute"]?.toIntOrNull() ?: 0,
