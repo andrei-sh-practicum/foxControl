@@ -81,6 +81,16 @@ class DebugViewModel @Inject constructor(
         return TrackingLogStorage.getAllLogs()
     }
 
+    fun getEmailSchedulerLogs(): List<String> {
+        val allLines = TrackingLogStorage.getAllLogs()
+            .split("\n")
+            .filter { it.isNotBlank() }
+        // Filter lines that contain "EmailScheduler" tag
+        return allLines.filter { line ->
+            line.contains("[EmailScheduler]")
+        }
+    }
+
     fun getLogStats(): String {
         return TrackingLogStorage.getLogStats()
     }

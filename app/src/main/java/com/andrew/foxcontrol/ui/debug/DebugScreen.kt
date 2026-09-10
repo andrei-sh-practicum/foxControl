@@ -208,8 +208,8 @@ private fun TabPermissions(viewModel: DebugViewModel, context: android.content.C
 
 @Composable
 private fun TabLog(viewModel: DebugViewModel) {
+    val emailLogs = viewModel.getEmailSchedulerLogs()
     val logContent = viewModel.getLogContent()
-    val logStats = viewModel.getLogStats()
 
     Column(
         modifier = Modifier
@@ -218,18 +218,22 @@ private fun TabLog(viewModel: DebugViewModel) {
             .verticalScroll(rememberScrollState()),
         verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
-        DebugSection(
-            title = "Статистика лога",
-            status = "Инфо",
-            icon = Icons.Default.Security
-        ) {
-            Text(
-                text = logStats,
-                style = MaterialTheme.typography.bodySmall,
-                fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace
-            )
+        // EmailScheduler log entries (top badge)
+        if (emailLogs.isNotEmpty()) {
+            DebugSection(
+                title = "📧 EmailScheduler",
+                status = "${emailLogs.size} записей",
+                icon = Icons.Default.CheckCircle
+            ) {
+                Text(
+                    text = emailLogs.joinToString("\n"),
+                    style = MaterialTheme.typography.bodySmall,
+                    fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace
+                )
+            }
         }
 
+        // Full log
         DebugSection(
             title = "Полный лог (последние 500 записей)",
             status = "Текст",
