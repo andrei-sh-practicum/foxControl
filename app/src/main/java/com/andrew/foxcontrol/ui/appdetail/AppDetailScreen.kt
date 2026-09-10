@@ -1,5 +1,6 @@
 package com.andrew.foxcontrol.ui.appdetail
 
+import android.content.pm.PackageManager
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
@@ -31,6 +32,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.andrew.foxcontrol.ui.common.AppIcon
 import com.andrew.foxcontrol.ui.common.formatDuration
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -66,30 +68,23 @@ private fun AppDetailContent(
 ) {
     val context = LocalContext.current
 
-    // Resolve app name and icon from PackageManager
+    // Resolve app name from PackageManager
     var displayName by remember(packageName) {
         mutableStateOf("Загрузка...")
     }
-    var appIcon by remember(packageName) {
-        mutableStateOf<android.graphics.drawable.Drawable?>(null)
-    }
 
     LaunchedEffect(packageName) {
-        val (name, icon) = withContext(Dispatchers.IO) {
+        displayName = withContext(Dispatchers.IO) {
             try {
                 val pm = context.packageManager
                 val appInfo = pm.getApplicationInfo(packageName, 0)
                 val label = pm.getApplicationLabel(appInfo)
-                val appName = if (label != null && label.isNotEmpty()) label.toString() else packageName
-                val appIcon = pm.getApplicationIcon(packageName)
-                appName to appIcon
+                if (label != null && label.isNotEmpty()) label.toString() else packageName
             } catch (e: Exception) {
                 android.util.Log.e("AppDetailScreen", "Failed to get app info for $packageName: ${e.message}")
-                packageName to null
+                packageName
             }
         }
-        displayName = name
-        appIcon = icon
     }
 
     Scaffold(
@@ -121,29 +116,10 @@ private fun AppDetailContent(
                         .padding(16.dp),
                     horizontalAlignment = Alignment.CenterHorizontally
                 ) {
-                    if (appIcon != null) {
-                        val bitmapDrawable = appIcon as? android.graphics.drawable.BitmapDrawable
-                        val bitmap = bitmapDrawable?.bitmap
-                        if (bitmap != null) {
-                            androidx.compose.foundation.Image(
-                                bitmap = bitmap.asImageBitmap(),
-                                contentDescription = displayName,
-                                modifier = Modifier.size(64.dp)
-                            )
-                        } else {
-                            Icon(
-                                Icons.Default.Settings,
-                                contentDescription = null,
-                                modifier = Modifier.size(64.dp)
-                            )
-                        }
-                    } else {
-                        Icon(
-                            Icons.Default.Settings,
-                            contentDescription = null,
-                            modifier = Modifier.size(64.dp)
-                        )
-                    }
+                    AppIcon(
+                        packageName = packageName,
+                        size = 64.dp
+                    )
 
                     Text(
                         text = displayName,

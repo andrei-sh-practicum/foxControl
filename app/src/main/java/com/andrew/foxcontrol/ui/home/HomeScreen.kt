@@ -1,7 +1,6 @@
 package com.andrew.foxcontrol.ui.home
 
 import android.content.pm.PackageManager
-import android.graphics.drawable.BitmapDrawable
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -37,12 +36,12 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.andrew.foxcontrol.domain.model.DailyUsageStats
+import com.andrew.foxcontrol.ui.common.AppIcon
 import com.andrew.foxcontrol.ui.common.formatDuration
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -304,32 +303,23 @@ private fun AppUsageCard(
 ) {
     val context = LocalContext.current
     
-    // Always try to get the real app name from PackageManager
+    // Resolve app name from PackageManager
     var displayName by remember(packageName) {
         mutableStateOf(appName.takeIf { it.isNotEmpty() && it != packageName } ?: packageName)
     }
     
-    var appIcon by remember(packageName) {
-        mutableStateOf<android.graphics.drawable.Drawable?>(null)
-    }
-    
     LaunchedEffect(packageName) {
-        // Load app name and icon from PackageManager
-        val (name, icon) = withContext(Dispatchers.IO) {
+        displayName = withContext(Dispatchers.IO) {
             try {
                 val pm = context.packageManager
                 val appInfo = pm.getApplicationInfo(packageName, PackageManager.GET_META_DATA)
                 val label = pm.getApplicationLabel(appInfo)
-                val appName = if (label != null && label.isNotEmpty()) label.toString() else packageName
-                val appIcon = pm.getApplicationIcon(packageName)
-                appName to appIcon
+                if (label != null && label.isNotEmpty()) label.toString() else packageName
             } catch (e: Exception) {
-                android.util.Log.e("HomeScreen", "Failed to get app info for $packageName: ${e.message}")
-                packageName to null
+                android.util.Log.e("AppUsageCard", "Failed to get app name for $packageName: ${e.message}")
+                packageName
             }
         }
-        displayName = name
-        appIcon = icon
     }
     
     Card(
@@ -344,29 +334,10 @@ private fun AppUsageCard(
             verticalAlignment = Alignment.CenterVertically
         ) {
             // App icon
-            if (appIcon != null) {
-                val bitmapDrawable = appIcon as? BitmapDrawable
-                val bitmap = bitmapDrawable?.bitmap
-                if (bitmap != null) {
-                    Image(
-                        bitmap = bitmap.asImageBitmap(),
-                        contentDescription = displayName,
-                        modifier = Modifier.size(40.dp)
-                    )
-                } else {
-                    Icon(
-                        Icons.Default.Settings,
-                        contentDescription = null,
-                        modifier = Modifier.size(40.dp)
-                    )
-                }
-            } else {
-                Icon(
-                    Icons.Default.Settings,
-                    contentDescription = null,
-                    modifier = Modifier.size(40.dp)
-                )
-            }
+            AppIcon(
+                packageName = packageName,
+                size = 40.dp
+            )
             
             // App info
             Column(
