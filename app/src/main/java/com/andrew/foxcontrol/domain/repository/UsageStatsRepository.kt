@@ -1,5 +1,6 @@
 package com.andrew.foxcontrol.domain.repository
 
+import com.andrew.foxcontrol.core.tracking.DowntimeHourBucket
 import com.andrew.foxcontrol.domain.model.DailyUsageStats
 import com.andrew.foxcontrol.domain.model.UsageStats
 import com.andrew.foxcontrol.domain.model.WeeklyUsageStats
@@ -14,4 +15,5 @@ interface UsageStatsRepository {
     suspend fun upsertTrackedApp(app: com.andrew.foxcontrol.data.local.entity.TrackedAppEntity)
     suspend fun getTodaySessionsForPackage(packageName: String, date: String): List<com.andrew.foxcontrol.data.local.entity.UsageSessionEntity>
     suspend fun clearTrackedApps()
+    suspend fun getServiceDowntimeBuckets(date: String): List<DowntimeHourBucket>
 }

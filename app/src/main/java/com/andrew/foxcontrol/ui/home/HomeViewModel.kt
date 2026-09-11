@@ -3,6 +3,7 @@ package com.andrew.foxcontrol.ui.home
 import androidx.compose.runtime.Immutable
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.andrew.foxcontrol.core.tracking.DowntimeHourBucket
 import com.andrew.foxcontrol.domain.model.DailyUsageStats
 import com.andrew.foxcontrol.domain.model.UsageStats
 import com.andrew.foxcontrol.domain.model.WeeklyUsageStats
@@ -26,6 +27,7 @@ class HomeViewModel @Inject constructor(
 
     init {
         loadStatistics()
+        loadDowntimeChart()
     }
 
     fun onEvent(event: HomeEvent) {
@@ -78,6 +80,20 @@ class HomeViewModel @Inject constructor(
             }
         }
     }
+
+    private fun loadDowntimeChart() {
+        viewModelScope.launch {
+            try {
+                val today = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(Date())
+                val downtimeBuckets = usageStatsRepository.getServiceDowntimeBuckets(today)
+                _state.update { it.copy(downtimeBuckets = downtimeBuckets) }
+            } catch (e: Exception) {
+                _state.update {
+                    it.copy(error = "Ошибка загрузки диаграммы простоев: ${e.message}")
+                }
+            }
+        }
+    }
 }
 
 @Immutable
@@ -86,6 +102,7 @@ data class HomeState(
     val period: HomePeriod = HomePeriod.Today,
     val dailyStats: DailyUsageStats? = null,
     val weeklyStats: WeeklyUsageStats? = null,
+    val downtimeBuckets: List<DowntimeHourBucket> = emptyList(),
     val error: String? = null
 )
 

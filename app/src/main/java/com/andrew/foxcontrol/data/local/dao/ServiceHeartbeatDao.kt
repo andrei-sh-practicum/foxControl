@@ -19,6 +19,9 @@ interface ServiceHeartbeatDao {
     suspend fun deleteOldHeartbeats(cutoff: Long)
 
     // --- Debug methods ---
+    @Query("SELECT * FROM service_heartbeats WHERE timestamp >= :dayStart AND timestamp < :dayEnd ORDER BY timestamp ASC")
+    suspend fun getHeartbeatsBetween(dayStart: Long, dayEnd: Long): List<ServiceHeartbeatEntity>
+
     @Query("SELECT COUNT(*) FROM service_heartbeats")
     suspend fun getHeartbeatCount(): Int
 

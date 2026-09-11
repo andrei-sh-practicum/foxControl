@@ -2,6 +2,8 @@ package com.andrew.foxcontrol.data.repository
 
 import android.content.pm.PackageManager
 import com.andrew.foxcontrol.core.tracking.CategoryResolver
+import com.andrew.foxcontrol.core.tracking.DowntimeCalculator
+import com.andrew.foxcontrol.core.tracking.DowntimeHourBucket
 import com.andrew.foxcontrol.core.tracking.TrackingLogStorage
 import com.andrew.foxcontrol.data.local.dao.*
 import com.andrew.foxcontrol.data.local.entity.*
@@ -23,7 +25,6 @@ class UsageStatsRepositoryImpl @Inject constructor(
     private val appLimitDao: AppLimitDao,
     private val globalLimitDao: GlobalLimitDao,
     private val serviceHeartbeatDao: ServiceHeartbeatDao,
-    private val serviceDowntimeEventDao: ServiceDowntimeEventDao,
     private val alertLogDao: AlertLogDao,
     private val packageManager: PackageManager
 ) : UsageStatsRepository {
@@ -227,18 +228,6 @@ class UsageStatsRepositoryImpl @Inject constructor(
         return serviceHeartbeatDao.getLastHeartbeat()?.timestamp
     }
 
-    // --- Downtime ---
-
-    suspend fun recordDowntime(start: Long, end: Long, reason: String) {
-        serviceDowntimeEventDao.insertDowntimeEvent(
-            ServiceDowntimeEventEntity(
-                startTime = start,
-                endTime = end,
-                reason = reason
-            )
-        )
-    }
-
     // --- Limits ---
 
     suspend fun setAppLimit(packageName: String, dailyLimitMinutes: Int, enabled: Boolean) {
@@ -273,6 +262,36 @@ class UsageStatsRepositoryImpl @Inject constructor(
             heartbeatCount = heartbeatCount,
             lastHeartbeatTimestamp = lastHeartbeat
         )
+    }
+
+    override suspend fun getServiceDowntimeBuckets(date: String): List<DowntimeHourBucket> {
+        try {
+            val dateFormat = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
+            val calendar = Calendar.getInstance()
+            calendar.time = dateFormat.parse(date) ?: Calendar.getInstance().time
+            calendar.set(Calendar.HOUR_OF_DAY, 0)
+            calendar.set(Calendar.MINUTE, 0)
+            calendar.set(Calendar.SECOND, 0)
+            calendar.set(Calendar.MILLISECOND, 0)
+            val dayStart = calendar.timeInMillis
+
+            calendar.set(Calendar.HOUR_OF_DAY, 23)
+            calendar.set(Calendar.MINUTE, 59)
+            calendar.set(Calendar.SECOND, 59)
+            calendar.set(Calendar.MILLISECOND, 999)
+            val dayEnd = calendar.timeInMillis + 1
+
+            val heartbeats = serviceHeartbeatDao.getHeartbeatsBetween(dayStart, dayEnd)
+            val timestamps = heartbeats.map { it.timestamp }
+            TrackingLogStorage.add("Repo", "getServiceDowntimeBuckets: date=$date heartbeats=${timestamps.size}")
+
+            return DowntimeCalculator.calculate(timestamps, System.currentTimeMillis())
+        } catch (e: Exception) {
+            TrackingLogStorage.add("Repo", "getServiceDowntimeBuckets EXCEPTION: ${e.message}")
+            TrackingLogStorage.add("Repo", e.stackTraceToString())
+            // Return empty buckets on error
+            return (6..21).map { DowntimeHourBucket(it, 0, 0) }
+        }
     }
 }
 

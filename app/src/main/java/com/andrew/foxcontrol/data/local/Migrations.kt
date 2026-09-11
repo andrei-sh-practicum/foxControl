@@ -38,3 +38,14 @@ val MIGRATION_2_3 = object : Migration(2, 3) {
         """)
     }
 }
+
+/**
+ * Migration from database version 3 to version 4.
+ * Drops the unused service_downtime_events table.
+ * Downtime is now computed on-the-fly from service_heartbeats gaps.
+ */
+val MIGRATION_3_4 = object : Migration(3, 4) {
+    override fun migrate(database: SupportSQLiteDatabase) {
+        database.execSQL("DROP TABLE IF EXISTS service_downtime_events")
+    }
+}

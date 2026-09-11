@@ -1,16 +1,21 @@
 package com.andrew.foxcontrol.ui.home
 
 import android.content.pm.PackageManager
-import androidx.compose.foundation.Image
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.material3.Divider
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.BarChart
 import androidx.compose.material.icons.filled.Error
@@ -40,6 +45,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.andrew.foxcontrol.core.tracking.DowntimeHourBucket
 import com.andrew.foxcontrol.domain.model.DailyUsageStats
 import com.andrew.foxcontrol.ui.common.AppIcon
 import com.andrew.foxcontrol.ui.common.formatDuration
@@ -107,6 +113,11 @@ private fun HomeContent(
                         )
                     }
                 }
+            }
+
+            // Service downtime chart (Today tab only, first)
+            if (state.period == HomePeriod.Today && state.downtimeBuckets.isNotEmpty()) {
+                ServiceDowntimeChart(state.downtimeBuckets)
             }
 
             // Total usage summary
@@ -376,3 +387,108 @@ private fun AppUsageCard(
         }
     }
 }
+
+@Composable
+private fun ServiceDowntimeChart(buckets: List<DowntimeHourBucket>) {
+    val totalMinutes = buckets.sumOf { it.downtimeMinutes }
+    val chartHeight = 96.dp
+    val gridLines = 6
+
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp, vertical = 8.dp)
+    ) {
+        // Summary text
+        Text(
+            text = if (totalMinutes > 0) "Простои сегодня (06:00–22:00): $totalMinutes мин"
+            else "Простоев не было",
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.padding(vertical = 4.dp)
+        )
+
+        // Chart area
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(chartHeight + 32.dp) // extra space for labels
+                .background(
+                    MaterialTheme.colorScheme.surfaceContainerLow,
+                    MaterialTheme.shapes.small
+                ),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.Bottom
+        ) {
+            buckets.forEach { bucket ->
+                Column(
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    modifier = Modifier
+                        .weight(1f)
+                        .fillMaxHeight()
+                        .padding(horizontal = 1.dp)
+                ) {
+                    // Column bars (bottom-aligned)
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .weight(1f),
+                        contentAlignment = Alignment.BottomCenter
+                    ) {
+                        // Grid lines background
+                        for (i in 1 until gridLines) {
+                            val yOffset = (-i * (chartHeight.value / gridLines)).dp
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .offset(y = yOffset),
+                                contentAlignment = Alignment.TopCenter
+                            ) {
+                                Divider(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    thickness = 0.5.dp,
+                                    color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f)
+                                )
+                            }
+                        }
+
+                        if (bucket.divisions > 0) {
+                            Column(
+                                verticalArrangement = Arrangement.spacedBy(1.dp),
+                                horizontalAlignment = Alignment.CenterHorizontally
+                            ) {
+                                repeat(bucket.divisions) {
+                                    Box(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .weight(1f / gridLines)
+                                            .background(
+                                                if (bucket.divisions >= 4) {
+                                                    MaterialTheme.colorScheme.error
+                                                } else {
+                                                    MaterialTheme.colorScheme.primary
+                                                },
+                                                MaterialTheme.shapes.extraSmall
+                                            )
+                                    )
+                                }
+                            }
+                        }
+                    }
+
+                    // Hour label (every other)
+                    if (bucket.hour % 2 == 0) {
+                        Text(
+                            text = stringOfInt(bucket.hour) + ":00",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.padding(top = 2.dp)
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+
+private fun stringOfInt(n: Int): String = n.toString()

@@ -7,6 +7,7 @@ import androidx.room.Room
 import com.andrew.foxcontrol.data.local.AppDatabase
 import com.andrew.foxcontrol.data.local.AppDatabase.Companion.DATABASE_VERSION
 import com.andrew.foxcontrol.data.local.MIGRATION_2_3
+import com.andrew.foxcontrol.data.local.MIGRATION_3_4
 import com.andrew.foxcontrol.data.local.dao.*
 import dagger.Module
 import dagger.Provides
@@ -30,7 +31,7 @@ object AppModule {
             AppDatabase::class.java,
             DB_NAME
         )
-            .addMigrations(MIGRATION_2_3)
+            .addMigrations(MIGRATION_2_3, MIGRATION_3_4)
             .fallbackToDestructiveMigration()
             .build()
     }
@@ -69,12 +70,6 @@ object AppModule {
     @Provides
     fun provideServiceHeartbeatDao(appDatabase: AppDatabase): ServiceHeartbeatDao {
         return appDatabase.serviceHeartbeatDao()
-    }
-
-    @Singleton
-    @Provides
-    fun provideServiceDowntimeEventDao(appDatabase: AppDatabase): ServiceDowntimeEventDao {
-        return appDatabase.serviceDowntimeEventDao()
     }
 
     @Singleton

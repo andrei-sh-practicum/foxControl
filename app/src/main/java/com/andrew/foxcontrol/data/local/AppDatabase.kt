@@ -13,13 +13,12 @@ import com.andrew.foxcontrol.data.local.entity.*
         AppLimitEntity::class,
         GlobalLimitEntity::class,
         ServiceHeartbeatEntity::class,
-        ServiceDowntimeEventEntity::class,
         AlertLogEntity::class,
         EmailRecipientEntity::class,
         EmailSettingsEntity::class,
         ReportSendLogEntity::class,
     ],
-    version = 3,
+    version = 4,
     exportSchema = true
 )
 abstract class AppDatabase : RoomDatabase() {
@@ -32,7 +31,6 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun appLimitDao(): AppLimitDao
     abstract fun globalLimitDao(): GlobalLimitDao
     abstract fun serviceHeartbeatDao(): ServiceHeartbeatDao
-    abstract fun serviceDowntimeEventDao(): ServiceDowntimeEventDao
     abstract fun alertLogDao(): AlertLogDao
     abstract fun emailRecipientDao(): EmailRecipientDao
     abstract fun emailSettingsDao(): EmailSettingsDao
