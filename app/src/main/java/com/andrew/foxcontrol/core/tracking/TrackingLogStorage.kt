@@ -176,7 +176,7 @@ object TrackingLogStorage {
         val hasRepo = tags.contains("Repo")
         val hasPermission = tags.contains("Permission")
         val hasUsageStats = tags.contains("UsageStats")
-        val hasEmailScheduler = tags.contains("EmailScheduler")
+        val hasEmailReport = tags.contains("EmailReport")
 
         sb.append("\nКомпоненты:\n")
         sb.append("  Service: ${if (hasService) "✓ работает" else "✗ не запущен"}\n")
@@ -184,7 +184,7 @@ object TrackingLogStorage {
         sb.append("  Repository: ${if (hasRepo) "✓ работает" else "✗ не вызывался"}\n")
         sb.append("  Permission: ${if (hasPermission) "✓ проверяется" else "✗ не проверяется"}\n")
         sb.append("  UsageStats: ${if (hasUsageStats) "✓ опрашивается" else "✗ не опрашивается"}\n")
-        sb.append("  EmailScheduler: ${if (hasEmailScheduler) "✓ работает" else "✗ не вызывался"}\n")
+        sb.append("  EmailReport: ${if (hasEmailReport) "✓ работает" else "✗ не вызывался"}\n")
 
         return sb.toString()
     }

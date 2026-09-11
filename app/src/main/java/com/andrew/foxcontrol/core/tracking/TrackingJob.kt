@@ -6,6 +6,7 @@ import android.content.Context
 import android.content.pm.PackageManager
 import android.util.Log
 import com.andrew.foxcontrol.core.alerts.AlertManager
+import com.andrew.foxcontrol.core.email.EmailReportSender
 import com.andrew.foxcontrol.core.tracking.TrackingLogStorage.add
 import com.andrew.foxcontrol.data.repository.UsageStatsRepositoryImpl
 import kotlinx.coroutines.DelicateCoroutinesApi
@@ -18,12 +19,14 @@ import java.util.concurrent.ConcurrentHashMap
 class TrackingJob(
     private val context: Context,
     private val usageStatsRepository: UsageStatsRepositoryImpl,
-    private val alertManager: AlertManager
+    private val alertManager: AlertManager,
+    private val emailReportSender: EmailReportSender
 ) {
     private var isRunning = false
     private val usageStatsManager = context.getSystemService(Context.USAGE_STATS_SERVICE) as UsageStatsManager
     private var heartbeatTimer: Timer? = null
     private var usageStatsTimer: Timer? = null
+    private var emailReportTimer: Timer? = null
 
     // Track last known foreground time per package to compute deltas
     private val lastForegroundTime = ConcurrentHashMap<String, Long>()
@@ -70,6 +73,20 @@ class TrackingJob(
                 }
             }, 0, USAGE_STATS_POLL_INTERVAL_MS)
         }
+
+        // Email report check timer
+        emailReportTimer = Timer("email_report").apply {
+            scheduleAtFixedRate(object : TimerTask() {
+                override fun run() {
+                    try {
+                        emailReportSender.checkAndSendIfDue()
+                    } catch (e: Exception) {
+                        TrackingLogStorage.add("EmailReport", "checkAndSendIfDue ERROR: ${e.message}")
+                        TrackingLogStorage.add("EmailReport", e.stackTraceToString())
+                    }
+                }
+            }, 0, EMAIL_REPORT_CHECK_INTERVAL_MS)
+        }
     }
 
     fun stop() {
@@ -77,6 +94,7 @@ class TrackingJob(
         Log.d(TAG, "TrackingJob stopped")
         heartbeatTimer?.cancel()
         usageStatsTimer?.cancel()
+        emailReportTimer?.cancel()
     }
 
     @OptIn(DelicateCoroutinesApi::class)
@@ -201,5 +219,6 @@ class TrackingJob(
         const val TAG = "TrackingJob"
         const val HEARTBEAT_INTERVAL_MS = 60_000L // 1 minute
         const val USAGE_STATS_POLL_INTERVAL_MS = 60_000L // 1 minute
+        const val EMAIL_REPORT_CHECK_INTERVAL_MS = 60_000L // 1 minute
     }
 }

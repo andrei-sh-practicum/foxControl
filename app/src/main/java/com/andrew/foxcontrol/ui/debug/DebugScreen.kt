@@ -218,10 +218,10 @@ private fun TabLog(viewModel: DebugViewModel) {
             .verticalScroll(rememberScrollState()),
         verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
-        // EmailScheduler log entries (top badge)
+        // EmailReport log entries (top badge)
         if (emailLogs.isNotEmpty()) {
             DebugSection(
-                title = "📧 EmailScheduler",
+                title = "📧 EmailReport",
                 status = "${emailLogs.size} записей",
                 icon = Icons.Default.CheckCircle
             ) {

@@ -5,7 +5,6 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.andrew.foxcontrol.BuildConfig
 import com.andrew.foxcontrol.core.email.EmailSender
-import com.andrew.foxcontrol.core.email.EmailScheduler
 import com.andrew.foxcontrol.data.local.entity.EmailRecipientEntity
 import com.andrew.foxcontrol.data.repository.EmailRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -40,8 +39,7 @@ object BrevoDefaults {
 @HiltViewModel
 class EmailSettingsViewModel @Inject constructor(
     private val emailRepository: EmailRepository,
-    private val emailSender: EmailSender,
-    private val emailScheduler: EmailScheduler
+    private val emailSender: EmailSender
 ) : ViewModel() {
 
     private val _state = MutableStateFlow(EmailSettingsState())
@@ -113,10 +111,6 @@ class EmailSettingsViewModel @Inject constructor(
                 viewModelScope.launch {
                     emailRepository.saveSetting("send_time_hour", event.hour.toString())
                     emailRepository.saveSetting("send_time_minute", event.minute.toString())
-                    // Reschedule the alarm with the new time
-                    if (_state.value.isEnabled) {
-                        emailScheduler.scheduleDailyReport(event.hour, event.minute)
-                    }
                 }
             }
 
@@ -140,16 +134,6 @@ class EmailSettingsViewModel @Inject constructor(
             emailRepository.saveSetting("from_email", _state.value.fromEmail)
             emailRepository.saveSetting("send_time_hour", _state.value.sendTimeHour.toString())
             emailRepository.saveSetting("send_time_minute", _state.value.sendTimeMinute.toString())
-
-            // Reschedule the daily report alarm with the new time
-            if (_state.value.isEnabled) {
-                emailScheduler.scheduleDailyReport(
-                    _state.value.sendTimeHour,
-                    _state.value.sendTimeMinute
-                )
-            } else {
-                emailScheduler.cancelScheduledReport()
-            }
         }
     }
 
