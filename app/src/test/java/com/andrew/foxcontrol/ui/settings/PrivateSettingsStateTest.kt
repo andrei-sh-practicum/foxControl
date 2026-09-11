@@ -14,7 +14,6 @@ class PrivateSettingsStateTest {
 
         assertTrue(state.isLoading)
         assertFalse(state.isAuthenticated)
-        assertFalse(state.hasPassword)
         assertNull(state.passwordHash)
         assertEquals(120, state.globalDailyLimitMinutes)
         assertTrue(state.appLimits.isEmpty())
@@ -36,14 +35,6 @@ class PrivateSettingsStateTest {
         val updated = initial.copy(isAuthenticated = true)
 
         assertTrue(updated.isAuthenticated)
-    }
-
-    @Test
-    fun copyUpdatesHasPassword() {
-        val initial = PrivateSettingsState()
-        val updated = initial.copy(hasPassword = true)
-
-        assertTrue(updated.hasPassword)
     }
 
     @Test
@@ -87,7 +78,6 @@ class PrivateSettingsStateTest {
         val updated = initial.copy(
             isLoading = false,
             isAuthenticated = true,
-            hasPassword = true,
             passwordHash = "hash123",
             globalDailyLimitMinutes = 90,
             appLimits = mapOf("com.app" to 30),
@@ -96,7 +86,6 @@ class PrivateSettingsStateTest {
 
         assertFalse(updated.isLoading)
         assertTrue(updated.isAuthenticated)
-        assertTrue(updated.hasPassword)
         assertEquals("hash123", updated.passwordHash)
         assertEquals(90, updated.globalDailyLimitMinutes)
         assertEquals(1, updated.appLimits.size)
@@ -108,7 +97,6 @@ class PrivateSettingsStateTest {
         val state1 = PrivateSettingsState(
             isLoading = false,
             isAuthenticated = true,
-            hasPassword = true,
             passwordHash = "abc",
             globalDailyLimitMinutes = 60,
             appLimits = emptyMap(),
@@ -117,7 +105,6 @@ class PrivateSettingsStateTest {
         val state2 = PrivateSettingsState(
             isLoading = false,
             isAuthenticated = true,
-            hasPassword = true,
             passwordHash = "abc",
             globalDailyLimitMinutes = 60,
             appLimits = emptyMap(),
@@ -216,11 +203,6 @@ class PrivateSettingsStateTest {
     @Test
     fun isAuthenticated_falseByDefault() {
         assertFalse(PrivateSettingsState().isAuthenticated)
-    }
-
-    @Test
-    fun hasPassword_falseByDefault() {
-        assertFalse(PrivateSettingsState().hasPassword)
     }
 
     @Test

@@ -28,7 +28,7 @@ class PrivateSettingsViewModel @Inject constructor(
                 .collect { hash ->
                     _state.update {
                         it.copy(
-                            hasPassword = !hash.isNullOrEmpty(),
+                            passwordHash = hash,
                             isLoading = false
                         )
                     }
@@ -43,7 +43,7 @@ class PrivateSettingsViewModel @Inject constructor(
             userRepository.setPasswordHash(hash)
             _state.update {
                 it.copy(
-                    hasPassword = true,
+                    passwordHash = hash,
                     isLoading = false
                 )
             }
@@ -86,10 +86,6 @@ class PrivateSettingsViewModel @Inject constructor(
                     _state.update { it.copy(error = "Неверный пароль") }
                 }
             }
-            is PrivateSettingsEvent.OnSetPassword -> {
-                setPassword(event.password)
-                _state.update { it.copy(isAuthenticated = true) }
-            }
             is PrivateSettingsEvent.OnChangePassword -> {
                 changePassword(event.oldPassword, event.newPassword)
                 _state.update { it.copy(error = null) }
@@ -115,7 +111,6 @@ class PrivateSettingsViewModel @Inject constructor(
 data class PrivateSettingsState(
     val isLoading: Boolean = true,
     val isAuthenticated: Boolean = false,
-    val hasPassword: Boolean = false,
     val passwordHash: String? = null,
     val globalDailyLimitMinutes: Int = 120,
     val appLimits: Map<String, Int> = emptyMap(),
@@ -125,7 +120,6 @@ data class PrivateSettingsState(
 sealed class PrivateSettingsEvent {
     object OnClearTrackedApps : PrivateSettingsEvent()
     data class OnPasswordEntered(val password: String) : PrivateSettingsEvent()
-    data class OnSetPassword(val password: String) : PrivateSettingsEvent()
     data class OnChangePassword(val oldPassword: String, val newPassword: String) : PrivateSettingsEvent()
     data class OnGlobalLimitChanged(val minutes: Int) : PrivateSettingsEvent()
     data class OnAppLimitChanged(val packageName: String, val limitMinutes: Int) : PrivateSettingsEvent()

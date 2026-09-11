@@ -35,6 +35,9 @@ class OnboardingViewModel @Inject constructor(
         // Ensure default user exists in Room
         userRepository.ensureDefaultUser()
 
+        // Ensure default password hash is set (12345) if not already set
+        userRepository.initDefaultUser()
+
         // Check all permissions
         val permissions = permissionRepository.checkPermissions()
         _state.update {

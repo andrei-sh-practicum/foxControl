@@ -1,7 +1,5 @@
 package com.andrew.foxcontrol.ui.settings
 
-import androidx.compose.foundation.Image
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -10,23 +8,20 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.filled.ArrowDropDown
 import androidx.compose.material.icons.filled.Email
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.Person
-import androidx.compose.material.icons.filled.PersonAdd
 import androidx.compose.material.icons.filled.Security
+import androidx.compose.material.icons.filled.Visibility
+import androidx.compose.material.icons.filled.VisibilityOff
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Divider
 import androidx.compose.material3.CenterAlignedTopAppBar
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.ExposedDropdownMenuBox
-import androidx.compose.material3.ExposedDropdownMenuDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -41,13 +36,11 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
-import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.text.input.PasswordVisualTransformation
+import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import coil.compose.rememberAsyncImagePainter
 import com.andrew.foxcontrol.R
 
 @Composable
@@ -63,9 +56,7 @@ fun PrivateSettingsScreen(
     // Gate screen: password entry
     if (!state.isAuthenticated) {
         PrivateSettingsGate(
-            hasPassword = state.hasPassword,
             onPasswordEntered = { viewModel.onEvent(PrivateSettingsEvent.OnPasswordEntered(it)) },
-            onSetPassword = { viewModel.onEvent(PrivateSettingsEvent.OnSetPassword(it)) },
             onBackClick = onBackClick,
             error = state.error
         )
@@ -83,14 +74,12 @@ fun PrivateSettingsScreen(
 
 @Composable
 private fun PrivateSettingsGate(
-    hasPassword: Boolean,
     onPasswordEntered: (String) -> Unit,
-    onSetPassword: (String) -> Unit,
     onBackClick: () -> Unit,
     error: String?
 ) {
     var password by remember { mutableStateOf("") }
-    var isSetMode by remember { mutableStateOf(!hasPassword) }
+    var isPasswordVisible by remember { mutableStateOf(false) }
 
     Column(
         modifier = Modifier
@@ -107,13 +96,13 @@ private fun PrivateSettingsGate(
         )
 
         Text(
-            text = if (isSetMode) "Создайте пароль" else "Введите пароль",
+            text = "Введите пароль",
             style = MaterialTheme.typography.headlineSmall,
             modifier = Modifier.padding(top = 16.dp)
         )
 
         Text(
-            text = if (isSetMode) "Пароль нужен для доступа к приватным настройкам" else "Введите пароль для доступа к приватным настройкам",
+            text = "Введите пароль для доступа к приватным настройкам",
             style = MaterialTheme.typography.bodyMedium,
             modifier = Modifier.padding(top = 8.dp)
         )
@@ -122,9 +111,18 @@ private fun PrivateSettingsGate(
             value = password,
             onValueChange = { password = it },
             modifier = Modifier.fillMaxWidth().padding(top = 16.dp),
-            label = { Text("Пароль") },
+            label = { Text("Пароль для входа") },
             isError = error != null,
-            singleLine = true
+            singleLine = true,
+            visualTransformation = if (isPasswordVisible) VisualTransformation.None else PasswordVisualTransformation(),
+            trailingIcon = {
+                IconButton(onClick = { isPasswordVisible = !isPasswordVisible }) {
+                    Icon(
+                        imageVector = if (isPasswordVisible) Icons.Default.Visibility else Icons.Default.VisibilityOff,
+                        contentDescription = if (isPasswordVisible) "Скрыть пароль" else "Показать пароль"
+                    )
+                }
+            }
         )
 
         error?.let {
@@ -138,26 +136,11 @@ private fun PrivateSettingsGate(
 
         Button(
             onClick = {
-                if (isSetMode) {
-                    if (password.length >= 4) {
-                        onSetPassword(password)
-                    }
-                } else {
-                    onPasswordEntered(password)
-                }
+                onPasswordEntered(password)
             },
             modifier = Modifier.fillMaxWidth().padding(top = 16.dp)
         ) {
-            Text(if (isSetMode) "Установить пароль" else "Войти")
-        }
-
-        if (hasPassword) {
-            TextButton(onClick = {
-                isSetMode = false
-                password = ""
-            }) {
-                Text("У меня есть пароль")
-            }
+            Text("Вход")
         }
 
         TextButton(onClick = onBackClick) {
@@ -453,8 +436,11 @@ private fun ChangePasswordDialog(
     onChangePassword: (String, String) -> Unit
 ) {
     var oldPassword by remember { mutableStateOf("") }
+    var oldPasswordVisible by remember { mutableStateOf(false) }
     var newPassword by remember { mutableStateOf("") }
+    var newPasswordVisible by remember { mutableStateOf(false) }
     var confirmPassword by remember { mutableStateOf("") }
+    var confirmPasswordVisible by remember { mutableStateOf(false) }
 
     AlertDialog(
         onDismissRequest = onDismiss,
@@ -465,19 +451,46 @@ private fun ChangePasswordDialog(
                     value = oldPassword,
                     onValueChange = { oldPassword = it },
                     label = { Text("Текущий пароль") },
-                    modifier = Modifier.fillMaxWidth()
+                    modifier = Modifier.fillMaxWidth(),
+                    visualTransformation = if (oldPasswordVisible) VisualTransformation.None else PasswordVisualTransformation(),
+                    trailingIcon = {
+                        IconButton(onClick = { oldPasswordVisible = !oldPasswordVisible }) {
+                            Icon(
+                                imageVector = if (oldPasswordVisible) Icons.Default.Visibility else Icons.Default.VisibilityOff,
+                                contentDescription = if (oldPasswordVisible) "Скрыть пароль" else "Показать пароль"
+                            )
+                        }
+                    }
                 )
                 OutlinedTextField(
                     value = newPassword,
                     onValueChange = { newPassword = it },
                     label = { Text("Новый пароль") },
-                    modifier = Modifier.fillMaxWidth()
+                    modifier = Modifier.fillMaxWidth(),
+                    visualTransformation = if (newPasswordVisible) VisualTransformation.None else PasswordVisualTransformation(),
+                    trailingIcon = {
+                        IconButton(onClick = { newPasswordVisible = !newPasswordVisible }) {
+                            Icon(
+                                imageVector = if (newPasswordVisible) Icons.Default.Visibility else Icons.Default.VisibilityOff,
+                                contentDescription = if (newPasswordVisible) "Скрыть пароль" else "Показать пароль"
+                            )
+                        }
+                    }
                 )
                 OutlinedTextField(
                     value = confirmPassword,
                     onValueChange = { confirmPassword = it },
                     label = { Text("Подтвердите пароль") },
-                    modifier = Modifier.fillMaxWidth()
+                    modifier = Modifier.fillMaxWidth(),
+                    visualTransformation = if (confirmPasswordVisible) VisualTransformation.None else PasswordVisualTransformation(),
+                    trailingIcon = {
+                        IconButton(onClick = { confirmPasswordVisible = !confirmPasswordVisible }) {
+                            Icon(
+                                imageVector = if (confirmPasswordVisible) Icons.Default.Visibility else Icons.Default.VisibilityOff,
+                                contentDescription = if (confirmPasswordVisible) "Скрыть пароль" else "Показать пароль"
+                            )
+                        }
+                    }
                 )
             }
         },
