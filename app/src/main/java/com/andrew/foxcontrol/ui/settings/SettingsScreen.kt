@@ -12,9 +12,11 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.BugReport
+import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material3.Button
 import androidx.compose.material3.CenterAlignedTopAppBar
@@ -22,15 +24,25 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.input.KeyboardCapitalization
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -47,19 +59,13 @@ fun SettingsScreen(
     viewModel: SettingsViewModel = hiltViewModel()
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
-    val context = LocalContext.current
 
     // Activity result launcher for picking image from gallery
     val imagePickerLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.GetContent()
     ) { uri: Uri? ->
         uri?.let {
-            // Grant read permission so Coil can access it
-            context.contentResolver.takePersistableUriPermission(
-                it,
-                android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION
-            )
-            viewModel.setAvatarUri(it.toString())
+            viewModel.saveAvatar(it)
         }
     }
 
@@ -69,7 +75,8 @@ fun SettingsScreen(
         onPrivateSettingsClick = onPrivateSettingsClick,
         onDebugClick = onDebugClick,
         onEvent = viewModel::onEvent,
-        onAvatarChange = viewModel::setAvatarUri,
+        onNameSave = viewModel::saveName,
+        onClearMessage = viewModel::clearMessage,
         onAvatarPickClick = { imagePickerLauncher.launch("image/*") }
     )
 }
@@ -82,7 +89,8 @@ private fun SettingsContent(
     onPrivateSettingsClick: () -> Unit,
     onDebugClick: () -> Unit,
     onEvent: (SettingsEvent) -> Unit,
-    onAvatarChange: (String) -> Unit,
+    onNameSave: (String) -> Unit,
+    onClearMessage: () -> Unit,
     onAvatarPickClick: () -> Unit
 ) {
     Scaffold(
@@ -138,6 +146,74 @@ private fun SettingsContent(
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
+            }
+
+            // Name editing section (NEW)
+            Column(
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.spacedBy(8.dp),
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Text(
+                    text = "Имя пользователя",
+                    style = MaterialTheme.typography.titleMedium,
+                    color = MaterialTheme.colorScheme.onSurface
+                )
+
+                // Keep draft in sync with state.name on first load or when user hasn't edited yet
+                var nameDraft by remember { mutableStateOf(state.name) }
+                val currentName by rememberUpdatedState(state.name)
+
+                // Sync draft with state.name only if draft is empty (user hasn't typed yet)
+                LaunchedEffect(currentName) {
+                    if (nameDraft.isEmpty() && currentName.isNotEmpty()) {
+                        nameDraft = currentName
+                    }
+                }
+
+                // Clear success/error message after 2 seconds
+                LaunchedEffect(state.message) {
+                    if (state.message.isNotEmpty()) {
+                        kotlinx.coroutines.delay(2000)
+                        onClearMessage()
+                    }
+                }
+
+                OutlinedTextField(
+                    value = nameDraft,
+                    onValueChange = { nameDraft = it },
+                    label = { Text("Введите имя") },
+                    modifier = Modifier.fillMaxWidth(),
+                    keyboardOptions = KeyboardOptions(
+                        capitalization = KeyboardCapitalization.Words,
+                        keyboardType = KeyboardType.Text
+                    ),
+                    singleLine = true
+                )
+
+                OutlinedButton(
+                    onClick = {
+                        onNameSave(nameDraft)
+                    },
+                    modifier = Modifier.fillMaxWidth(),
+                    enabled = nameDraft.isNotBlank()
+                ) {
+                    Icon(Icons.Default.Check, contentDescription = null)
+                    Text("Сохранить имя")
+                }
+
+                // Success/error message
+                if (state.message.isNotEmpty()) {
+                    Text(
+                        text = state.message,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = if (state.message.contains("Ошибка")) {
+                            Color.Red
+                        } else {
+                            MaterialTheme.colorScheme.primary
+                        }
+                    )
+                }
             }
 
             // Private settings button

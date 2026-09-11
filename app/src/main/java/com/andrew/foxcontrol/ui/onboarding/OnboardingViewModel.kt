@@ -32,8 +32,8 @@ class OnboardingViewModel @Inject constructor(
     private suspend fun initApp() {
         _state.update { it.copy(status = OnboardingStatus.CheckingPermissions) }
 
-        // Init default user if needed
-        userRepository.initDefaultUser()
+        // Ensure default user exists in Room
+        userRepository.ensureDefaultUser()
 
         // Check all permissions
         val permissions = permissionRepository.checkPermissions()
