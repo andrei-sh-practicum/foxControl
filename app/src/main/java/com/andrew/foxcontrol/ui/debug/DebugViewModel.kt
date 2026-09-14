@@ -2,6 +2,7 @@ package com.andrew.foxcontrol.ui.debug
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.andrew.foxcontrol.core.tracking.DowntimeHourBucket
 import com.andrew.foxcontrol.core.tracking.TrackingLogStorage
 import com.andrew.foxcontrol.data.repository.DebugInfo
 import com.andrew.foxcontrol.data.repository.UsageStatsRepositoryImpl
@@ -27,6 +28,14 @@ class DebugViewModel @Inject constructor(
             _state.update { it.copy(isLoading = true) }
             try {
                 val debugInfo = repository.getDebugInfo()
+                
+                // Load downtime buckets
+                val today = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(Date())
+                val downtimeBuckets = try {
+                    repository.getServiceDowntimeBuckets(today)
+                } catch (e: Exception) {
+                    emptyList()
+                }
                 
                 val now = Date()
                 val lastHeartbeatStr = debugInfo.lastHeartbeatTimestamp?.let { ts ->
@@ -63,7 +72,8 @@ class DebugViewModel @Inject constructor(
                         heartbeatCount = debugInfo.heartbeatCount,
                         lastHeartbeatStr = lastHeartbeatStr,
                         dateRangeStr = dateRangeStr,
-                        recentSessionsStr = recentSessionsStr
+                        recentSessionsStr = recentSessionsStr,
+                        downtimeBuckets = downtimeBuckets
                     )
                 }
             } catch (e: Exception) {
@@ -108,5 +118,6 @@ data class DebugState(
     val heartbeatCount: Int = 0,
     val lastHeartbeatStr: String = "",
     val dateRangeStr: String = "",
-    val recentSessionsStr: String = ""
+    val recentSessionsStr: String = "",
+    val downtimeBuckets: List<DowntimeHourBucket> = emptyList()
 )

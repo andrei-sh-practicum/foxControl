@@ -1,11 +1,16 @@
 package com.andrew.foxcontrol.ui.debug
 
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
@@ -147,6 +152,22 @@ private fun TabDatabase(state: DebugState) {
             ) {
                 DebugRow("Записей heartbeat", state.heartbeatCount.toString())
                 DebugRow("Последний heartbeat", state.lastHeartbeatStr)
+            }
+
+            DebugSection(
+                title = "Простои сервиса сегодня (06:00–22:00)",
+                status = if (state.downtimeBuckets.isNotEmpty()) "OK" else "Нет данных",
+                icon = if (state.downtimeBuckets.isNotEmpty()) Icons.Default.CheckCircle else Icons.Default.Error
+            ) {
+                if (state.downtimeBuckets.isNotEmpty()) {
+                    ServiceDowntimeChart(state.downtimeBuckets)
+                } else {
+                    Text(
+                        text = "Нет записей heartbeat за сегодня — диаграмма не построится",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
             }
 
             DebugSection(
@@ -440,5 +461,110 @@ private fun DebugRow(label: String, value: String) {
             fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace,
             maxLines = 3
         )
+    }
+}
+
+@Composable
+private fun ServiceDowntimeChart(buckets: List<DowntimeHourBucket>) {
+    val totalDeadMinutes = buckets.sumOf { it.deadMinutes }
+    val chartHeight = 96.dp
+    val gridLines = 6
+
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp, vertical = 8.dp)
+    ) {
+        // Summary text
+        Text(
+            text = "Простои сегодня (06:00–22:00): $totalDeadMinutes мин",
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.padding(vertical = 4.dp)
+        )
+
+        // Chart area
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(chartHeight + 32.dp) // extra space for labels
+                .background(
+                    MaterialTheme.colorScheme.surfaceContainerLow,
+                    MaterialTheme.shapes.small
+                ),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.Bottom
+        ) {
+            buckets.forEach { bucket ->
+                Column(
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    modifier = Modifier
+                        .weight(1f)
+                        .fillMaxHeight()
+                        .padding(horizontal = 1.dp)
+                ) {
+                    // Column bars — bottom-aligned with empty space on top
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .fillMaxHeight(),
+                        contentAlignment = Alignment.BottomCenter
+                    ) {
+                        // Grid lines background
+                        for (i in 1 until gridLines) {
+                            val yOffset = (-i * (chartHeight.value / gridLines)).dp
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .offset(y = yOffset),
+                                contentAlignment = Alignment.TopCenter
+                            ) {
+                                androidx.compose.material3.Divider(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    thickness = 0.5.dp,
+                                    color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f)
+                                )
+                            }
+                        }
+
+                        // Dead minutes (red) at bottom
+                        if (bucket.deadMinutes > 0) {
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .fillMaxHeight(bucket.deadMinutes / 60f)
+                                    .background(
+                                        MaterialTheme.colorScheme.error,
+                                        MaterialTheme.shapes.extraSmall
+                                    )
+                            )
+                        }
+
+                        // Alive minutes (green/primary) on top
+                        if (bucket.aliveMinutes > 0) {
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .fillMaxHeight(bucket.aliveMinutes / 60f)
+                                    .background(
+                                        MaterialTheme.colorScheme.primary,
+                                        MaterialTheme.shapes.extraSmall
+                                    )
+                            )
+                        }
+                    }
+
+                    // Hour label (every other, no ":00" suffix)
+                    if (bucket.hour % 2 == 0) {
+                        Text(
+                            text = bucket.hour.toString().padStart(2, '0'),
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.padding(top = 2.dp)
+                        )
+                    }
+                }
+            }
+        }
     }
 }
