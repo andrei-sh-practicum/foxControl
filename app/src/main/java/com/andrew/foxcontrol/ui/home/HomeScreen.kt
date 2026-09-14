@@ -2,8 +2,8 @@ package com.andrew.foxcontrol.ui.home
 
 import android.content.pm.PackageManager
 import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxHeight
@@ -15,15 +15,9 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.material3.Divider
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.BarChart
-import androidx.compose.material.icons.filled.Error
-import androidx.compose.material.icons.filled.Settings
-import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CenterAlignedTopAppBar
-import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.Divider
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
@@ -33,6 +27,12 @@ import androidx.compose.material3.SegmentedButton
 import androidx.compose.material3.SegmentedButtonDefaults
 import androidx.compose.material3.SingleChoiceSegmentedButtonRow
 import androidx.compose.material3.Text
+import androidx.compose.material3.Button
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.BarChart
+import androidx.compose.material.icons.filled.Error
+import androidx.compose.material.icons.filled.Settings
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -313,12 +313,12 @@ private fun AppUsageCard(
     onClick: () -> Unit
 ) {
     val context = LocalContext.current
-    
+
     // Resolve app name from PackageManager
     var displayName by remember(packageName) {
         mutableStateOf(appName.takeIf { it.isNotEmpty() && it != packageName } ?: packageName)
     }
-    
+
     LaunchedEffect(packageName) {
         displayName = withContext(Dispatchers.IO) {
             try {
@@ -332,7 +332,7 @@ private fun AppUsageCard(
             }
         }
     }
-    
+
     Card(
         onClick = onClick,
         modifier = Modifier.fillMaxWidth()
@@ -349,7 +349,7 @@ private fun AppUsageCard(
                 packageName = packageName,
                 size = 40.dp
             )
-            
+
             // App info
             Column(
                 modifier = Modifier
@@ -373,7 +373,7 @@ private fun AppUsageCard(
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
-            
+
             // Duration
             Text(
                 text = formatDuration(totalDurationMs),
@@ -390,7 +390,7 @@ private fun AppUsageCard(
 
 @Composable
 private fun ServiceDowntimeChart(buckets: List<DowntimeHourBucket>) {
-    val totalMinutes = buckets.sumOf { it.downtimeMinutes }
+    val totalDeadMinutes = buckets.sumOf { it.deadMinutes }
     val chartHeight = 96.dp
     val gridLines = 6
 
@@ -401,8 +401,7 @@ private fun ServiceDowntimeChart(buckets: List<DowntimeHourBucket>) {
     ) {
         // Summary text
         Text(
-            text = if (totalMinutes > 0) "Простои сегодня (06:00–22:00): $totalMinutes мин"
-            else "Простоев не было",
+            text = "Простои сегодня (06:00–22:00): $totalDeadMinutes мин",
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             modifier = Modifier.padding(vertical = 4.dp)
@@ -428,11 +427,11 @@ private fun ServiceDowntimeChart(buckets: List<DowntimeHourBucket>) {
                         .fillMaxHeight()
                         .padding(horizontal = 1.dp)
                 ) {
-                    // Column bars (bottom-aligned)
+                    // Column bars — bottom-aligned with empty space on top
                     Box(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .weight(1f),
+                            .fillMaxHeight(),
                         contentAlignment = Alignment.BottomCenter
                     ) {
                         // Grid lines background
@@ -452,34 +451,37 @@ private fun ServiceDowntimeChart(buckets: List<DowntimeHourBucket>) {
                             }
                         }
 
-                        if (bucket.divisions > 0) {
-                            Column(
-                                verticalArrangement = Arrangement.spacedBy(1.dp),
-                                horizontalAlignment = Alignment.CenterHorizontally
-                            ) {
-                                repeat(bucket.divisions) {
-                                    Box(
-                                        modifier = Modifier
-                                            .fillMaxWidth()
-                                            .weight(1f / gridLines)
-                                            .background(
-                                                if (bucket.divisions >= 4) {
-                                                    MaterialTheme.colorScheme.error
-                                                } else {
-                                                    MaterialTheme.colorScheme.primary
-                                                },
-                                                MaterialTheme.shapes.extraSmall
-                                            )
+                        // Dead minutes (red) at bottom
+                        if (bucket.deadMinutes > 0) {
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .fillMaxHeight(bucket.deadMinutes / 60f)
+                                    .background(
+                                        MaterialTheme.colorScheme.error,
+                                        MaterialTheme.shapes.extraSmall
                                     )
-                                }
-                            }
+                            )
+                        }
+
+                        // Alive minutes (green/primary) on top
+                        if (bucket.aliveMinutes > 0) {
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .fillMaxHeight(bucket.aliveMinutes / 60f)
+                                    .background(
+                                        MaterialTheme.colorScheme.primary,
+                                        MaterialTheme.shapes.extraSmall
+                                    )
+                            )
                         }
                     }
 
-                    // Hour label (every other)
+                    // Hour label (every other, no ":00" suffix)
                     if (bucket.hour % 2 == 0) {
                         Text(
-                            text = stringOfInt(bucket.hour) + ":00",
+                            text = bucket.hour.toString().padStart(2, '0'),
                             style = MaterialTheme.typography.labelSmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                             modifier = Modifier.padding(top = 2.dp)
@@ -490,5 +492,3 @@ private fun ServiceDowntimeChart(buckets: List<DowntimeHourBucket>) {
         }
     }
 }
-
-private fun stringOfInt(n: Int): String = n.toString()

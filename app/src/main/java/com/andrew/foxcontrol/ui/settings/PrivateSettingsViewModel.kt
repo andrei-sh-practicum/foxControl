@@ -3,6 +3,8 @@ package com.andrew.foxcontrol.ui.settings
 import androidx.compose.runtime.Immutable
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.andrew.foxcontrol.data.local.entity.AppLimitEntity
+import com.andrew.foxcontrol.data.local.entity.TrackedAppEntity
 import com.andrew.foxcontrol.data.repository.UserRepository
 import com.andrew.foxcontrol.domain.repository.UsageStatsRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -33,6 +35,19 @@ class PrivateSettingsViewModel @Inject constructor(
                         )
                     }
                 }
+        }
+
+        // Load app limits from DB
+        viewModelScope.launch {
+            val limits = usageStatsRepository.getAppLimits()
+            val limitsMap = limits.associate { it.packageName to it.dailyLimitMinutes }
+            _state.update { it.copy(appLimits = limitsMap) }
+        }
+
+        // Load tracked apps
+        viewModelScope.launch {
+            val apps = usageStatsRepository.getTrackedApps()
+            _state.update { it.copy(trackedApps = apps) }
         }
     }
 
@@ -103,6 +118,28 @@ class PrivateSettingsViewModel @Inject constructor(
             PrivateSettingsEvent.OnClearError -> {
                 _state.update { it.copy(error = null) }
             }
+            is PrivateSettingsEvent.OnAddAppLimit -> {
+                viewModelScope.launch {
+                    try {
+                        usageStatsRepository.setAppLimit(
+                            packageName = event.packageName,
+                            dailyLimitMinutes = event.limitMinutes,
+                            enabled = true
+                        )
+                        // Update local state
+                        val limits = _state.value.appLimits.toMutableMap()
+                        limits[event.packageName] = event.limitMinutes
+                        _state.update { it.copy(appLimits = limits) }
+                        android.util.Log.d("PrivateSettings", "App limit added: ${event.packageName} = ${event.limitMinutes}")
+                    } catch (e: Exception) {
+                        android.util.Log.e("PrivateSettings", "Failed to add app limit", e)
+                        _state.update { it.copy(addAppLimitError = "Ошибка при добавлении: ${e.message}") }
+                    }
+                }
+            }
+            is PrivateSettingsEvent.OnClearAddAppLimitError -> {
+                _state.update { it.copy(addAppLimitError = null) }
+            }
         }
     }
 }
@@ -114,7 +151,9 @@ data class PrivateSettingsState(
     val passwordHash: String? = null,
     val globalDailyLimitMinutes: Int = 120,
     val appLimits: Map<String, Int> = emptyMap(),
-    val error: String? = null
+    val trackedApps: List<TrackedAppEntity> = emptyList(),
+    val error: String? = null,
+    val addAppLimitError: String? = null
 )
 
 sealed class PrivateSettingsEvent {
@@ -123,5 +162,7 @@ sealed class PrivateSettingsEvent {
     data class OnChangePassword(val oldPassword: String, val newPassword: String) : PrivateSettingsEvent()
     data class OnGlobalLimitChanged(val minutes: Int) : PrivateSettingsEvent()
     data class OnAppLimitChanged(val packageName: String, val limitMinutes: Int) : PrivateSettingsEvent()
+    data class OnAddAppLimit(val packageName: String, val appName: String, val limitMinutes: Int) : PrivateSettingsEvent()
     object OnClearError : PrivateSettingsEvent()
+    object OnClearAddAppLimitError : PrivateSettingsEvent()
 }

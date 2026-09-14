@@ -20,6 +20,9 @@ import androidx.compose.material.icons.filled.VisibilityOff
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Divider
+import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.ExposedDropdownMenuBox
+import androidx.compose.material3.ExposedDropdownMenuDefaults
 import androidx.compose.material3.CenterAlignedTopAppBar
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
@@ -233,7 +236,10 @@ private fun PrivateSettingsContent(
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 } else {
+                    // Build packageName -> appName lookup
+                    val appMap = state.trackedApps.associate { it.packageName to it.appName }
                     state.appLimits.forEach { (packageName, limit) ->
+                        val appName = appMap[packageName] ?: packageName
                         Row(
                             verticalAlignment = Alignment.CenterVertically,
                             horizontalArrangement = Arrangement.SpaceBetween,
@@ -242,7 +248,7 @@ private fun PrivateSettingsContent(
                                 .padding(horizontal = 16.dp)
                         ) {
                             Text(
-                                text = packageName,
+                                text = appName,
                                 style = MaterialTheme.typography.bodyMedium
                             )
                             Text(
@@ -359,32 +365,116 @@ private fun PrivateSettingsContent(
 
         // App limit dialog
         if (showAppLimitDialog) {
+            var selectedAppName by remember { mutableStateOf("") }
+            var selectedPackageName by remember { mutableStateOf("") }
+            var minutesText by remember { mutableStateOf("") }
+            var expanded by remember { mutableStateOf(false) }
+            var minutesError by remember { mutableStateOf<String?>(null) }
+
+            // Filter out apps that already have a limit
+            val availableApps = state.trackedApps
+                .filter { app -> state.appLimits[app.packageName] == null }
+                .sortedBy { it.appName }
+
             AlertDialog(
-                onDismissRequest = { showAppLimitDialog = false },
+                onDismissRequest = {
+                    expanded = false
+                    showAppLimitDialog = false
+                },
                 title = { Text("Добавить лимит приложения") },
                 text = {
                     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        ExposedDropdownMenuBox(
+                            expanded = expanded,
+                            onExpandedChange = { expanded = it }
+                        ) {
+                            OutlinedTextField(
+                                value = selectedAppName,
+                                onValueChange = {},
+                                readOnly = true,
+                                label = { Text("Приложение") },
+                                modifier = Modifier.fillMaxWidth(),
+                                trailingIcon = {
+                                    ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded)
+                                },
+                                colors = ExposedDropdownMenuDefaults.outlinedTextFieldColors()
+                            )
+
+                            ExposedDropdownMenu(
+                                expanded = expanded,
+                                onDismissRequest = { expanded = false }
+                            ) {
+                                if (availableApps.isEmpty()) {
+                                    DropdownMenuItem(
+                                        onClick = { expanded = false },
+                                        text = { Text("Нет доступных приложений") }
+                                    )
+                                } else {
+                                    availableApps.forEach { app ->
+                                        DropdownMenuItem(
+                                            onClick = {
+                                                selectedAppName = app.appName
+                                                selectedPackageName = app.packageName
+                                                expanded = false
+                                            },
+                                            text = { Text(app.appName) }
+                                        )
+                                    }
+                                }
+                            }
+                        }
+
                         OutlinedTextField(
-                            value = "",
-                            onValueChange = { /* TODO: implement */ },
-                            label = { Text("Пакет приложения") },
-                            modifier = Modifier.fillMaxWidth()
-                        )
-                        OutlinedTextField(
-                            value = "",
-                            onValueChange = { /* TODO: implement */ },
+                            value = minutesText,
+                            onValueChange = {
+                                minutesText = it
+                                // Validate: only digits
+                                if (it.isNotEmpty() && it.any { c -> !c.isDigit() }) {
+                                    minutesError = "Введите целое число"
+                                } else {
+                                    minutesError = null
+                                }
+                            },
                             label = { Text("Лимит (минуты)") },
-                            modifier = Modifier.fillMaxWidth()
+                            modifier = Modifier.fillMaxWidth(),
+                            isError = minutesError != null,
+                            supportingText = {
+                                if (minutesError != null) {
+                                    Text(text = minutesError!!, color = MaterialTheme.colorScheme.error)
+                                }
+                            }
                         )
                     }
                 },
                 confirmButton = {
-                    TextButton(onClick = { showAppLimitDialog = false }) {
+                    TextButton(
+                        enabled = selectedPackageName.isNotEmpty() &&
+                            minutesText.isNotEmpty() &&
+                            minutesError == null &&
+                            minutesText.toIntOrNull() != null,
+                        onClick = {
+                            val limitMinutes = minutesText.toIntOrNull()
+                            if (limitMinutes != null) {
+                                onEvent(
+                                    PrivateSettingsEvent.OnAddAppLimit(
+                                        packageName = selectedPackageName,
+                                        appName = selectedAppName,
+                                        limitMinutes = limitMinutes
+                                    )
+                                )
+                                onEvent(PrivateSettingsEvent.OnClearAddAppLimitError)
+                                showAppLimitDialog = false
+                            }
+                        }
+                    ) {
                         Text("Добавить")
                     }
                 },
                 dismissButton = {
-                    TextButton(onClick = { showAppLimitDialog = false }) {
+                    TextButton(onClick = {
+                        expanded = false
+                        showAppLimitDialog = false
+                    }) {
                         Text("Отмена")
                     }
                 }

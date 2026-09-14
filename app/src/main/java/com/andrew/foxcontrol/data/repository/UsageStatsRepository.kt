@@ -230,10 +230,6 @@ class UsageStatsRepositoryImpl @Inject constructor(
 
     // --- Limits ---
 
-    suspend fun setAppLimit(packageName: String, dailyLimitMinutes: Int, enabled: Boolean) {
-        appLimitDao.insertLimit(AppLimitEntity(packageName, dailyLimitMinutes, enabled))
-    }
-
     suspend fun setGlobalLimit(dailyLimitMinutes: Int, enabled: Boolean) {
         globalLimitDao.setGlobalLimit(dailyLimitMinutes, enabled)
     }
@@ -242,6 +238,18 @@ class UsageStatsRepositoryImpl @Inject constructor(
 
     suspend fun getAppLimitsSync(): List<AppLimitEntity> {
         return runBlocking { appLimitDao.getEnabledLimitsSync() }
+    }
+
+    override suspend fun getTrackedApps(): List<TrackedAppEntity> {
+        return trackedAppDao.getAllTrackedAppsSync()
+    }
+
+    override suspend fun getAppLimits(): List<AppLimitEntity> {
+        return runBlocking { appLimitDao.getEnabledLimitsSync() }
+    }
+
+    override suspend fun setAppLimit(packageName: String, dailyLimitMinutes: Int, enabled: Boolean) {
+        appLimitDao.insertLimit(AppLimitEntity(packageName, dailyLimitMinutes, enabled))
     }
 
     // --- Debug ---
