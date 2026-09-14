@@ -42,6 +42,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -113,6 +114,14 @@ private fun HomeContent(
                         )
                     }
                 }
+            }
+
+            // Exceeded limits block (Today tab only, first)
+            if (state.period == HomePeriod.Today && state.exceededApps.isNotEmpty()) {
+                ExceededLimitsBlock(
+                    items = state.exceededApps,
+                    onClick = { packageName -> onAppDetailClick(packageName) }
+                )
             }
 
             // Service downtime chart (Today tab only, first)
@@ -487,6 +496,83 @@ private fun ServiceDowntimeChart(buckets: List<DowntimeHourBucket>) {
                             modifier = Modifier.padding(top = 2.dp)
                         )
                     }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun ExceededLimitsBlock(
+    items: List<com.andrew.foxcontrol.ui.home.ExceededAppInfo>,
+    onClick: (String) -> Unit
+) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp, vertical = 8.dp)
+    ) {
+        Text(
+            text = "⚠ Превышены лимиты",
+            style = MaterialTheme.typography.titleMedium,
+            color = MaterialTheme.colorScheme.error,
+            modifier = Modifier.padding(bottom = 8.dp)
+        )
+
+        items.forEach { info ->
+            Card(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(vertical = 4.dp),
+                onClick = { onClick(info.packageName) },
+                colors = androidx.compose.material3.CardDefaults.cardColors(
+                    containerColor = MaterialTheme.colorScheme.errorContainer
+                )
+            ) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(12.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    // App icon
+                    AppIcon(
+                        packageName = info.packageName,
+                        size = 40.dp
+                    )
+
+                    // App info
+                    Column(
+                        modifier = Modifier
+                            .weight(1f)
+                            .padding(horizontal = 12.dp)
+                    ) {
+                        Text(
+                            text = info.appName,
+                            style = MaterialTheme.typography.titleMedium,
+                            color = MaterialTheme.colorScheme.onErrorContainer
+                        )
+                        Text(
+                            text = "Использовано: ${info.totalMinutes} мин",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onErrorContainer.copy(alpha = 0.7f)
+                        )
+                        Text(
+                            text = "Превышение: +${info.overMinutes} мин",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.error,
+                            fontWeight = androidx.compose.ui.text.font.FontWeight.Bold
+                        )
+                    }
+
+                    // Error icon
+                    Icon(
+                        imageVector = Icons.Default.Error,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.error,
+                        modifier = Modifier.size(24.dp)
+                    )
                 }
             }
         }

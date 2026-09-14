@@ -21,7 +21,7 @@ class NotificationHelper @Inject constructor(
     companion object {
         const val TAG = "NotificationHelper"
         const val CHANNEL_ALERTS = "fox_control_alerts"
-        const val ID_ALERT_NOTIFICATION = 999
+        const val ID_ALERT_NOTIFICATION_BASE = 1000
     }
 
     fun showLimitExceededNotification(
@@ -44,15 +44,15 @@ class NotificationHelper @Inject constructor(
         )
 
         val title = if (isGlobal) {
-            "Лимит времени превышен!"
+            "Превышен суточный лимит"
         } else {
-            "Лимит приложения превышен!"
+            "Превышен суточный лимит приложения — $appName"
         }
 
         val text = if (isGlobal) {
             "Вы использовали $usedMinutes из $limitMinutes минут за сегодня"
         } else {
-            "$appName: использовано $usedMinutes из $limitMinutes минут"
+            "Использовано $usedMinutes из $limitMinutes минут"
         }
 
         val notification = NotificationCompat.Builder(context, CHANNEL_ALERTS)
@@ -65,8 +65,9 @@ class NotificationHelper @Inject constructor(
             .build()
 
         val notificationManager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
-        notificationManager.notify(ID_ALERT_NOTIFICATION, notification)
-        Log.d(TAG, "Alert notification shown: $title")
+        val notificationId = ID_ALERT_NOTIFICATION_BASE + packageName.hashCode().coerceAtLeast(0)
+        notificationManager.notify(notificationId, notification)
+        Log.d(TAG, "Alert notification shown: $title (id=$notificationId)")
     }
 
     private fun createNotificationChannel() {

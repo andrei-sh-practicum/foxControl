@@ -17,4 +17,7 @@ interface AlertLogDao {
 
     @Query("DELETE FROM alert_logs WHERE timestamp < :cutoff")
     suspend fun deleteOldLogs(cutoff: Long)
+
+    @Query("SELECT COUNT(*) > 0 FROM alert_logs WHERE packageName = :packageName AND type = :type AND timestamp >= :dayStart")
+    suspend fun wasAlertShownToday(packageName: String, type: String, dayStart: Long): Boolean
 }

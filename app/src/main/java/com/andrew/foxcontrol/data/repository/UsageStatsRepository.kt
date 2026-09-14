@@ -252,6 +252,16 @@ class UsageStatsRepositoryImpl @Inject constructor(
         appLimitDao.insertLimit(AppLimitEntity(packageName, dailyLimitMinutes, enabled))
     }
 
+    // --- Alert logs ---
+
+    suspend fun wasAlertShownToday(packageName: String, type: String, dayStart: Long): Boolean {
+        return alertLogDao.wasAlertShownToday(packageName, type, dayStart)
+    }
+
+    suspend fun recordAlertLog(log: AlertLogEntity) {
+        alertLogDao.insertAlertLog(log)
+    }
+
     // --- Debug ---
 
     suspend fun getDebugInfo(): DebugInfo {

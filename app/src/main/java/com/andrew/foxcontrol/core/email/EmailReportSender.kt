@@ -8,6 +8,7 @@ import com.andrew.foxcontrol.data.repository.EmailRepository
 import com.andrew.foxcontrol.domain.repository.UsageStatsRepository
 import com.andrew.foxcontrol.ui.common.formatDuration
 import dagger.hilt.android.qualifiers.ApplicationContext
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
 import java.text.SimpleDateFormat
 import java.util.*
@@ -19,7 +20,8 @@ class EmailReportSender @Inject constructor(
     @ApplicationContext private val context: Context,
     private val emailRepository: EmailRepository,
     private val emailSender: EmailSender,
-    private val usageStatsRepository: UsageStatsRepository
+    private val usageStatsRepository: UsageStatsRepository,
+    private val userRepository: com.andrew.foxcontrol.data.repository.UserRepository
 ) {
 
     companion object {
@@ -133,14 +135,54 @@ class EmailReportSender @Inject constructor(
             // 8. Build report body
             val today = getCurrentDate()
             val stats = runBlocking { usageStatsRepository.getDailyUsage(today) }
+            val userName = runBlocking {
+                userRepository.user.first()?.name ?: "Пользователь"
+            }
+            val appLimits = runBlocking { usageStatsRepository.getAppLimits() }
+
+            // Compute exceeded apps
+            data class ExceededApp(
+                val appName: String,
+                val totalMinutes: Int,
+                val limitMinutes: Int,
+                val overMinutes: Int
+            )
+            val exceededApps = mutableListOf<ExceededApp>()
+            val limitMap = appLimits.associate { it.packageName to it.dailyLimitMinutes }
+            for (app in stats.apps) {
+                val limitMinutes = limitMap[app.packageName] ?: continue
+                val totalMinutes = (app.totalDurationMs / (1000 * 60)).toInt()
+                if (totalMinutes > limitMinutes) {
+                    exceededApps.add(
+                        ExceededApp(
+                            appName = app.appName,
+                            totalMinutes = totalMinutes,
+                            limitMinutes = limitMinutes,
+                            overMinutes = totalMinutes - limitMinutes
+                        )
+                    )
+                }
+            }
+            exceededApps.sortByDescending { it.overMinutes }
 
             val subject = "Fox Control: Отчёт за $today"
             val body = buildString {
                 appendLine("Отчёт за $today")
                 appendLine("========================")
                 appendLine("")
+                appendLine("Пользователь: $userName")
                 appendLine("Общее время использования: ${formatDuration(stats.totalUsageMs)}")
                 appendLine("")
+
+                // Exceeded limits section
+                if (exceededApps.isNotEmpty()) {
+                    appendLine("⚠ Превышены суточные лимиты:")
+                    appendLine("-".repeat(30))
+                    for (ex in exceededApps) {
+                        appendLine("- ${ex.appName}: использовано ${ex.totalMinutes} мин (лимит ${ex.limitMinutes} мин, превышение +${ex.overMinutes} мин)")
+                    }
+                    appendLine("")
+                }
 
                 if (stats.apps.isNotEmpty()) {
                     appendLine("Список приложений:")
