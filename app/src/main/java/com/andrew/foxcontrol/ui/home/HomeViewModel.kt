@@ -3,6 +3,7 @@ package com.andrew.foxcontrol.ui.home
 import androidx.compose.runtime.Immutable
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.andrew.foxcontrol.data.local.entity.AppLimitEntity
 import com.andrew.foxcontrol.domain.model.DailyUsageStats
 import com.andrew.foxcontrol.domain.model.WeeklyUsageStats
 import com.andrew.foxcontrol.domain.repository.UsageStatsRepository
@@ -45,10 +46,14 @@ class HomeViewModel @Inject constructor(
 
                 if (period == HomePeriod.Today) {
                     val dailyStats = usageStatsRepository.getDailyUsage(today)
+                    val appLimits = usageStatsRepository.getAppLimits()
+                    val exceededApps = computeExceededApps(dailyStats, appLimits)
+
                     _state.update {
                         it.copy(
                             dailyStats = dailyStats,
                             weeklyStats = null,
+                            exceededApps = exceededApps,
                             isLoading = false
                         )
                     }
@@ -63,6 +68,7 @@ class HomeViewModel @Inject constructor(
                         it.copy(
                             dailyStats = null,
                             weeklyStats = weeklyStats,
+                            exceededApps = emptyList(),
                             isLoading = false
                         )
                     }
@@ -77,6 +83,33 @@ class HomeViewModel @Inject constructor(
             }
         }
     }
+
+    private fun computeExceededApps(
+        dailyStats: DailyUsageStats,
+        appLimits: List<AppLimitEntity>
+    ): List<ExceededAppInfo> {
+        val exceeded = mutableListOf<ExceededAppInfo>()
+        val limitMap = appLimits.associate { it.packageName to it.dailyLimitMinutes }
+
+        for (app in dailyStats.apps) {
+            val limitMinutes = limitMap[app.packageName] ?: continue
+            val totalMinutes = app.totalDurationMs / (1000 * 60)
+
+            if (totalMinutes > limitMinutes) {
+                exceeded.add(
+                    ExceededAppInfo(
+                        packageName = app.packageName,
+                        appName = app.appName,
+                        totalMinutes = totalMinutes.toInt(),
+                        limitMinutes = limitMinutes,
+                        overMinutes = totalMinutes.toInt() - limitMinutes
+                    )
+                )
+            }
+        }
+
+        return exceeded.sortedByDescending { it.overMinutes }
+    }
 }
 
 @Immutable
@@ -85,7 +118,16 @@ data class HomeState(
     val period: HomePeriod = HomePeriod.Today,
     val dailyStats: DailyUsageStats? = null,
     val weeklyStats: WeeklyUsageStats? = null,
+    val exceededApps: List<ExceededAppInfo> = emptyList(),
     val error: String? = null
+)
+
+data class ExceededAppInfo(
+    val packageName: String,
+    val appName: String,
+    val totalMinutes: Int,
+    val limitMinutes: Int,
+    val overMinutes: Int
 )
 
 enum class HomePeriod(val label: String) {

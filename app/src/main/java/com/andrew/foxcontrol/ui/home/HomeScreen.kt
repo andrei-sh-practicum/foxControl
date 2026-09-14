@@ -114,6 +114,14 @@ private fun HomeContent(
                 }
             }
 
+            // Exceeded limits block (Today tab only)
+            if (state.period == HomePeriod.Today && state.exceededApps.isNotEmpty()) {
+                ExceededLimitsBlock(
+                    items = state.exceededApps,
+                    onClick = { packageName -> onAppDetailClick(packageName) }
+                )
+            }
+
             // Total usage summary
             if (state.period == HomePeriod.Today) {
                 state.dailyStats?.let { dailyStats ->
@@ -378,6 +386,83 @@ private fun AppUsageCard(
                     MaterialTheme.colorScheme.primary
                 }
             )
+        }
+    }
+}
+
+@Composable
+private fun ExceededLimitsBlock(
+    items: List<ExceededAppInfo>,
+    onClick: (String) -> Unit
+) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp, vertical = 8.dp)
+    ) {
+        Text(
+            text = "⚠ Превышены лимиты",
+            style = MaterialTheme.typography.titleMedium,
+            color = MaterialTheme.colorScheme.error,
+            modifier = Modifier.padding(bottom = 8.dp)
+        )
+
+        items.forEach { info ->
+            Card(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(vertical = 4.dp),
+                onClick = { onClick(info.packageName) },
+                colors = androidx.compose.material3.CardDefaults.cardColors(
+                    containerColor = MaterialTheme.colorScheme.errorContainer
+                )
+            ) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(12.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    // App icon
+                    AppIcon(
+                        packageName = info.packageName,
+                        size = 40.dp
+                    )
+
+                    // App info
+                    Column(
+                        modifier = Modifier
+                            .weight(1f)
+                            .padding(horizontal = 12.dp)
+                    ) {
+                        Text(
+                            text = info.appName,
+                            style = MaterialTheme.typography.titleMedium,
+                            color = MaterialTheme.colorScheme.onErrorContainer
+                        )
+                        Text(
+                            text = "Использовано: ${info.totalMinutes} мин",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onErrorContainer.copy(alpha = 0.7f)
+                        )
+                        Text(
+                            text = "Превышение: +${info.overMinutes} мин",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.error,
+                            fontWeight = androidx.compose.ui.text.font.FontWeight.Bold
+                        )
+                    }
+
+                    // Error icon
+                    Icon(
+                        imageVector = Icons.Default.Error,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.error,
+                        modifier = Modifier.size(24.dp)
+                    )
+                }
+            }
         }
     }
 }
