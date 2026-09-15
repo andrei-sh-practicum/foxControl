@@ -2,6 +2,8 @@ package com.andrew.foxcontrol.data.repository
 
 import android.content.pm.PackageManager
 import com.andrew.foxcontrol.core.tracking.CategoryResolver
+import com.andrew.foxcontrol.core.tracking.AppUsageHourBucket
+import com.andrew.foxcontrol.core.tracking.AppUsageHourCalculator
 import com.andrew.foxcontrol.core.tracking.DowntimeCalculator
 import com.andrew.foxcontrol.core.tracking.DowntimeHourBucket
 import com.andrew.foxcontrol.core.tracking.TrackingLogStorage
@@ -309,6 +311,20 @@ class UsageStatsRepositoryImpl @Inject constructor(
             TrackingLogStorage.add("Repo", e.stackTraceToString())
             // Return empty buckets on error
             return (6..21).map { DowntimeHourBucket(it, 0, 0) }
+        }
+    }
+
+    override suspend fun getHourlyUsageForPackage(packageName: String, date: String): List<AppUsageHourBucket> {
+        try {
+            val sessions = usageSessionDao.getSessionsByPackageAndDate(packageName, date)
+            val intervals = sessions.map { it.startTime to it.endTime }
+            TrackingLogStorage.add("Repo", "getHourlyUsageForPackage: $packageName sessions=${intervals.size}")
+
+            return AppUsageHourCalculator.calculate(intervals, System.currentTimeMillis())
+        } catch (e: Exception) {
+            TrackingLogStorage.add("Repo", "getHourlyUsageForPackage EXCEPTION: ${e.message}")
+            TrackingLogStorage.add("Repo", e.stackTraceToString())
+            return (6..21).map { AppUsageHourBucket(it, 0) }
         }
     }
 }

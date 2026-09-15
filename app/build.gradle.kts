@@ -24,8 +24,8 @@ android {
         applicationId = "com.andrew.foxcontrol"
         minSdk = 26
         targetSdk = 35
-        versionCode = 37
-        versionName = "1.4.1"
+        versionCode = 38
+        versionName = "1.4.2"
 
         buildConfigField(
             "String",

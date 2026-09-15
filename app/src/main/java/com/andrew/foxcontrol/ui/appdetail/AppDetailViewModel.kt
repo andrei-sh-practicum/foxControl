@@ -3,7 +3,7 @@ package com.andrew.foxcontrol.ui.appdetail
 import androidx.compose.runtime.Immutable
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.andrew.foxcontrol.data.local.entity.UsageSessionEntity
+import com.andrew.foxcontrol.core.tracking.AppUsageHourBucket
 import com.andrew.foxcontrol.data.repository.UsageStatsRepositoryImpl
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -28,24 +28,31 @@ class AppDetailViewModel @Inject constructor(
                 val trackedApp = repository.getTrackedApp(packageName)
                 val category = trackedApp?.category ?: ""
 
-                // Load today's sessions
+                // Load today's date
                 val today = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(Date())
+
+                // Load today's sessions for summary
                 val sessions = repository.getTodaySessionsForPackage(packageName, today)
+                val totalUsageMs = sessions.sumOf { it.durationMs }
+                val sessionCount = sessions.size
+
+                // Load hourly usage buckets
+                val hourlyUsage = repository.getHourlyUsageForPackage(packageName, today)
 
                 _state.value = AppDetailState(
                     isLoading = false,
                     category = category,
-                    todayUsageMs = sessions.sumOf { it.durationMs },
-                    sessionCount = sessions.size,
-                    sessions = sessions
+                    todayUsageMs = totalUsageMs,
+                    sessionCount = sessionCount,
+                    hourlyUsage = hourlyUsage
                 )
             } catch (e: Exception) {
                 _state.value = AppDetailState(
                     isLoading = false,
                     category = "",
-                    todayUsageMs = 0,
+                    todayUsageMs = 0L,
                     sessionCount = 0,
-                    sessions = emptyList()
+                    hourlyUsage = emptyList()
                 )
             }
         }
@@ -58,5 +65,5 @@ data class AppDetailState(
     val category: String = "",
     val todayUsageMs: Long = 0L,
     val sessionCount: Int = 0,
-    val sessions: List<UsageSessionEntity> = emptyList()
+    val hourlyUsage: List<AppUsageHourBucket> = emptyList()
 )
