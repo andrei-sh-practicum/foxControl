@@ -140,6 +140,34 @@ class PrivateSettingsViewModel @Inject constructor(
             is PrivateSettingsEvent.OnClearAddAppLimitError -> {
                 _state.update { it.copy(addAppLimitError = null) }
             }
+            is PrivateSettingsEvent.OnExcludeApp -> {
+                viewModelScope.launch {
+                    try {
+                        usageStatsRepository.setAppExcluded(event.packageName, true)
+                        _state.update { s ->
+                            s.copy(trackedApps = s.trackedApps.map {
+                                if (it.packageName == event.packageName) it.copy(isExcluded = true) else it
+                            })
+                        }
+                    } catch (e: Exception) {
+                        _state.update { it.copy(error = "Ошибка при исключении приложения: ${e.message}") }
+                    }
+                }
+            }
+            is PrivateSettingsEvent.OnIncludeApp -> {
+                viewModelScope.launch {
+                    try {
+                        usageStatsRepository.setAppExcluded(event.packageName, false)
+                        _state.update { s ->
+                            s.copy(trackedApps = s.trackedApps.map {
+                                if (it.packageName == event.packageName) it.copy(isExcluded = false) else it
+                            })
+                        }
+                    } catch (e: Exception) {
+                        _state.update { it.copy(error = "Ошибка при возврате приложения в трекинг: ${e.message}") }
+                    }
+                }
+            }
         }
     }
 }
@@ -165,4 +193,6 @@ sealed class PrivateSettingsEvent {
     data class OnAddAppLimit(val packageName: String, val appName: String, val limitMinutes: Int) : PrivateSettingsEvent()
     object OnClearError : PrivateSettingsEvent()
     object OnClearAddAppLimitError : PrivateSettingsEvent()
+    data class OnExcludeApp(val packageName: String) : PrivateSettingsEvent()
+    data class OnIncludeApp(val packageName: String) : PrivateSettingsEvent()
 }

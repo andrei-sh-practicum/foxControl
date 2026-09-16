@@ -1,5 +1,6 @@
 package com.andrew.foxcontrol.ui.settings
 
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -10,6 +11,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.size
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Email
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Lock
@@ -167,6 +169,7 @@ private fun PrivateSettingsContent(
     var showGlobalLimitDialog by remember { mutableStateOf(false) }
     var showAppLimitDialog by remember { mutableStateOf(false) }
     var showClearTrackedAppsDialog by remember { mutableStateOf(false) }
+    var showExcludeAppDialog by remember { mutableStateOf(false) }
 
     Scaffold(
         topBar = {
@@ -256,6 +259,61 @@ private fun PrivateSettingsContent(
                                 text = "$limit мин",
                                 style = MaterialTheme.typography.bodyMedium,
                                 color = MaterialTheme.colorScheme.primary
+                            )
+                        }
+                    }
+                }
+            }
+
+            // Excluded apps section
+            Column(
+                verticalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Text(
+                        text = "Исключённые приложения",
+                        style = MaterialTheme.typography.titleMedium
+                    )
+                    TextButton(onClick = { showExcludeAppDialog = true }) {
+                        Text("Добавить")
+                    }
+                }
+
+                val excludedApps = state.trackedApps.filter { it.isExcluded }.sortedBy { it.appName }
+
+                if (excludedApps.isEmpty()) {
+                    Text(
+                        text = "Нет исключённых приложений",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                } else {
+                    Text(
+                        text = "Нажмите на приложение, чтобы вернуть его в трекинг",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    excludedApps.forEach { app ->
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 16.dp)
+                                .clickable { onEvent(PrivateSettingsEvent.OnIncludeApp(app.packageName)) }
+                        ) {
+                            Text(
+                                text = app.appName,
+                                style = MaterialTheme.typography.bodyMedium
+                            )
+                            Icon(
+                                Icons.Default.Close,
+                                contentDescription = "Убрать из исключений",
+                                tint = MaterialTheme.colorScheme.onSurfaceVariant
                             )
                         }
                     }
@@ -478,6 +536,81 @@ private fun PrivateSettingsContent(
                     }) {
                         Text("Отмена")
                     }
+                }
+            )
+        }
+
+        // Exclude app dialog
+        if (showExcludeAppDialog) {
+            var selectedAppName by remember { mutableStateOf("") }
+            var selectedPackageName by remember { mutableStateOf("") }
+            var expanded by remember { mutableStateOf(false) }
+
+            val availableApps = state.trackedApps
+                .filter { app -> !app.isExcluded }
+                .sortedBy { it.appName }
+
+            AlertDialog(
+                onDismissRequest = {
+                    expanded = false
+                    showExcludeAppDialog = false
+                },
+                title = { Text("Исключить приложение из трекинга") },
+                text = {
+                    ExposedDropdownMenuBox(
+                        expanded = expanded,
+                        onExpandedChange = { expanded = it }
+                    ) {
+                        OutlinedTextField(
+                            value = selectedAppName,
+                            onValueChange = {},
+                            readOnly = true,
+                            label = { Text("Приложение") },
+                            modifier = Modifier.fillMaxWidth().menuAnchor(MenuAnchorType.PrimaryNotEditable),
+                            trailingIcon = {
+                                ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded)
+                            },
+                            colors = ExposedDropdownMenuDefaults.outlinedTextFieldColors()
+                        )
+
+                        ExposedDropdownMenu(
+                            expanded = expanded,
+                            onDismissRequest = { expanded = false }
+                        ) {
+                            if (availableApps.isEmpty()) {
+                                DropdownMenuItem(
+                                    onClick = { expanded = false },
+                                    text = { Text("Нет доступных приложений") }
+                                )
+                            } else {
+                                availableApps.forEach { app ->
+                                    DropdownMenuItem(
+                                        onClick = {
+                                            selectedAppName = app.appName
+                                            selectedPackageName = app.packageName
+                                            expanded = false
+                                        },
+                                        text = { Text(app.appName) }
+                                    )
+                                }
+                            }
+                        }
+                    }
+                },
+                confirmButton = {
+                    TextButton(
+                        enabled = selectedPackageName.isNotEmpty(),
+                        onClick = {
+                            onEvent(PrivateSettingsEvent.OnExcludeApp(selectedPackageName))
+                            showExcludeAppDialog = false
+                        }
+                    ) { Text("Исключить") }
+                },
+                dismissButton = {
+                    TextButton(onClick = {
+                        expanded = false
+                        showExcludeAppDialog = false
+                    }) { Text("Отмена") }
                 }
             )
         }

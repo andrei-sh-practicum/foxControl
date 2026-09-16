@@ -23,4 +23,5 @@ interface UsageStatsRepository {
     suspend fun getTrackedApps(): List<com.andrew.foxcontrol.data.local.entity.TrackedAppEntity>
     suspend fun getAppLimits(): List<com.andrew.foxcontrol.data.local.entity.AppLimitEntity>
     suspend fun setAppLimit(packageName: String, dailyLimitMinutes: Int, enabled: Boolean)
+    suspend fun setAppExcluded(packageName: String, excluded: Boolean)
 }

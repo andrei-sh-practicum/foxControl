@@ -140,6 +140,13 @@ class UsageStatsRepositoryImpl @Inject constructor(
         isEntertainment: Boolean
     ) {
         try {
+            // Check exclusion BEFORE writing anything
+            val existingApp = trackedAppDao.getTrackedApp(packageName)
+            if (existingApp?.isExcluded == true) {
+                TrackingLogStorage.add("Repo", "trackUsageSession SKIPPED (excluded): $packageName")
+                return
+            }
+
             TrackingLogStorage.add("Repo", "insertSession: $packageName ($appName) durationMs=$durationMs")
             val date = dateFormat.format(Date(startTime))
             val session = UsageSessionEntity(
@@ -156,7 +163,6 @@ class UsageStatsRepositoryImpl @Inject constructor(
 
             // Upsert tracked app with category resolution
             val category = CategoryResolver.resolve(packageManager, packageName)
-            val existingApp = trackedAppDao.getTrackedApp(packageName)
             if (existingApp == null) {
                 // First time seeing this app — insert with category
                 val trackedApp = TrackedAppEntity(
@@ -252,6 +258,10 @@ class UsageStatsRepositoryImpl @Inject constructor(
 
     override suspend fun setAppLimit(packageName: String, dailyLimitMinutes: Int, enabled: Boolean) {
         appLimitDao.insertLimit(AppLimitEntity(packageName, dailyLimitMinutes, enabled))
+    }
+
+    override suspend fun setAppExcluded(packageName: String, excluded: Boolean) {
+        trackedAppDao.setExcluded(packageName, excluded)
     }
 
     // --- Alert logs ---
