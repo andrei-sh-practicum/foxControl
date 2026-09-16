@@ -34,7 +34,7 @@ interface UsageSessionDao {
     suspend fun insertSessions(sessions: List<UsageSessionEntity>)
 
     @Query("DELETE FROM usage_sessions WHERE date < :keepDate")
-    suspend fun deleteOldSessions(keepDate: String)
+    suspend fun deleteOldSessions(keepDate: String): Int
 
     // --- Debug methods ---
     @Query("SELECT COUNT(*) FROM usage_sessions")

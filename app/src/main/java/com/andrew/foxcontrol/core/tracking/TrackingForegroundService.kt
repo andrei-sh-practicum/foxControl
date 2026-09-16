@@ -11,6 +11,7 @@ import android.util.Log
 import androidx.core.app.NotificationCompat
 import com.andrew.foxcontrol.core.alerts.AlertManager
 import com.andrew.foxcontrol.core.email.EmailReportSender
+import com.andrew.foxcontrol.core.maintenance.DataCleanupManager
 import com.andrew.foxcontrol.core.permissions.PermissionMonitor
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.*
@@ -37,12 +38,15 @@ class TrackingForegroundService : Service() {
     @Inject
     lateinit var emailReportSender: EmailReportSender
 
+    @Inject
+    lateinit var dataCleanupManager: DataCleanupManager
+
     private lateinit var trackingJob: TrackingJob
     private var checkPermissionJob: Job? = null
 
     override fun onCreate() {
         super.onCreate()
-        trackingJob = TrackingJob(this, usageStatsRepository, alertManager, emailReportSender)
+        trackingJob = TrackingJob(this, usageStatsRepository, alertManager, emailReportSender, dataCleanupManager)
         TrackingLogStorage.add("Service", "TrackingForegroundService created")
         TrackingLogStorage.add("Service", "Package: ${packageName}")
         TrackingLogStorage.add("Permission", "UsageStats: ${TrackingLogStorage.getPermissionInfo(this)}")

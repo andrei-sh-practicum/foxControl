@@ -7,6 +7,7 @@ import com.andrew.foxcontrol.core.tracking.TrackingLogStorage
 import com.andrew.foxcontrol.data.repository.DebugInfo
 import com.andrew.foxcontrol.data.repository.UsageStatsRepositoryImpl
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.DelicateCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.update
@@ -17,7 +18,8 @@ import javax.inject.Inject
 
 @HiltViewModel
 class DebugViewModel @Inject constructor(
-    private val repository: UsageStatsRepositoryImpl
+    private val repository: UsageStatsRepositoryImpl,
+    private val dataCleanupManager: com.andrew.foxcontrol.core.maintenance.DataCleanupManager
 ) : ViewModel() {
 
     private val _state = MutableStateFlow(DebugState())
@@ -107,6 +109,40 @@ class DebugViewModel @Inject constructor(
 
     fun getPermissionInfo(context: android.content.Context): String {
         return TrackingLogStorage.getPermissionInfo(context)
+    }
+
+    // --- Cleanup info ---
+
+    fun getLastCleanupTimestamp(): Long? {
+        return dataCleanupManager.getLastCleanupTimestamp()
+    }
+
+    @OptIn(DelicateCoroutinesApi::class)
+    fun triggerCleanup() {
+        viewModelScope.launch {
+            try {
+                dataCleanupManager.purgeOldData()
+                loadDebugInfo() // reload after cleanup
+            } catch (e: Exception) {
+                _state.update {
+                    it.copy(error = "Ошибка очистки: ${e.message}")
+                }
+            }
+        }
+    }
+
+    fun getCleanupStatusText(): String {
+        val lastTs = dataCleanupManager.getLastCleanupTimestamp()
+        return if (lastTs != null) {
+            val diff = (System.currentTimeMillis() - lastTs) / 1000
+            val diffStr = if (diff < 60) "$diff сек назад"
+            else if (diff < 3600) "${diff / 60} мин назад"
+            else if (diff < 86400) "${diff / 3600} ч назад"
+            else "${diff / 86400} дн назад"
+            "Последняя очистка: $diffStr"
+        } else {
+            "Очистка ещё не проводилась"
+        }
     }
 }
 

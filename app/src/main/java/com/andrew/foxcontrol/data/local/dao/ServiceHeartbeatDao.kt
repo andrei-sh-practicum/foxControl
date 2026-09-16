@@ -16,7 +16,7 @@ interface ServiceHeartbeatDao {
     suspend fun insertHeartbeat(heartbeat: ServiceHeartbeatEntity)
 
     @Query("DELETE FROM service_heartbeats WHERE timestamp < :cutoff")
-    suspend fun deleteOldHeartbeats(cutoff: Long)
+    suspend fun deleteOldHeartbeats(cutoff: Long): Int
 
     // --- Debug methods ---
     @Query("SELECT * FROM service_heartbeats WHERE timestamp >= :dayStart AND timestamp < :dayEnd ORDER BY timestamp ASC")

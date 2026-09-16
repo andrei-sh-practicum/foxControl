@@ -18,5 +18,5 @@ interface ReportSendLogDao {
     suspend fun insertLog(log: ReportSendLogEntity): Long
 
     @Query("DELETE FROM report_send_log WHERE sentAt < :before")
-    suspend fun deleteOldLogs(before: Long)
+    suspend fun deleteOldLogs(before: Long): Int
 }

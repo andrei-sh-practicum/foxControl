@@ -7,6 +7,7 @@ import android.content.pm.PackageManager
 import android.util.Log
 import com.andrew.foxcontrol.core.alerts.AlertManager
 import com.andrew.foxcontrol.core.email.EmailReportSender
+import com.andrew.foxcontrol.core.maintenance.DataCleanupManager
 import com.andrew.foxcontrol.core.tracking.TrackingLogStorage.add
 import com.andrew.foxcontrol.data.repository.UsageStatsRepositoryImpl
 import kotlinx.coroutines.DelicateCoroutinesApi
@@ -20,13 +21,15 @@ class TrackingJob(
     private val context: Context,
     private val usageStatsRepository: UsageStatsRepositoryImpl,
     private val alertManager: AlertManager,
-    private val emailReportSender: EmailReportSender
+    private val emailReportSender: EmailReportSender,
+    private val dataCleanupManager: DataCleanupManager
 ) {
     private var isRunning = false
     private val usageStatsManager = context.getSystemService(Context.USAGE_STATS_SERVICE) as UsageStatsManager
     private var heartbeatTimer: Timer? = null
     private var usageStatsTimer: Timer? = null
     private var emailReportTimer: Timer? = null
+    private var cleanupTimer: Timer? = null
 
     // Track last known foreground time per package to compute deltas
     private val lastForegroundTime = ConcurrentHashMap<String, Long>()
@@ -87,6 +90,22 @@ class TrackingJob(
                 }
             }, 0, EMAIL_REPORT_CHECK_INTERVAL_MS)
         }
+
+        // Data cleanup timer (garbage collector, every 12 hours)
+        cleanupTimer = Timer("data_cleanup").apply {
+            scheduleAtFixedRate(object : TimerTask() {
+                override fun run() {
+                    GlobalScope.launch {
+                        try {
+                            dataCleanupManager.purgeOldData()
+                        } catch (e: Exception) {
+                            TrackingLogStorage.add("Cleanup", "purgeOldData ERROR: ${e.message}")
+                            TrackingLogStorage.add("Cleanup", e.stackTraceToString())
+                        }
+                    }
+                }
+            }, 0, CLEANUP_INTERVAL_MS)
+        }
     }
 
     fun stop() {
@@ -95,6 +114,7 @@ class TrackingJob(
         heartbeatTimer?.cancel()
         usageStatsTimer?.cancel()
         emailReportTimer?.cancel()
+        cleanupTimer?.cancel()
     }
 
     @OptIn(DelicateCoroutinesApi::class)
@@ -220,5 +240,6 @@ class TrackingJob(
         const val HEARTBEAT_INTERVAL_MS = 60_000L // 1 minute
         const val USAGE_STATS_POLL_INTERVAL_MS = 60_000L // 1 minute
         const val EMAIL_REPORT_CHECK_INTERVAL_MS = 60_000L // 1 minute
+        const val CLEANUP_INTERVAL_MS = 12 * 60 * 60 * 1000L // 12 hours
     }
 }

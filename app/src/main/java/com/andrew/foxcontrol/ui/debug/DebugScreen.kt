@@ -20,6 +20,7 @@ import androidx.compose.material.icons.filled.BugReport
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Error
 import androidx.compose.material.icons.filled.Security
+import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -104,7 +105,7 @@ fun DebugScreen(
 
             // Tab content
             when (selectedTab) {
-                0 -> TabDatabase(state)
+                0 -> TabDatabase(state, viewModel)
                 1 -> TabPermissions(viewModel, context)
                 2 -> TabLog(viewModel)
                 3 -> TabAnalysis(state)
@@ -114,7 +115,7 @@ fun DebugScreen(
 }
 
 @Composable
-private fun TabDatabase(state: DebugState) {
+private fun TabDatabase(state: DebugState, viewModel: DebugViewModel? = null) {
     if (state.isLoading) {
         Column(
             modifier = Modifier.fillMaxSize(),
@@ -173,6 +174,28 @@ private fun TabDatabase(state: DebugState) {
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
+                }
+            }
+
+            // --- Garbage Collector section ---
+            viewModel?.let { vm ->
+                DebugSection(
+                    title = "🧹 Очистка данных (Garbage Collector)",
+                    status = "7 суток",
+                    icon = Icons.Default.CheckCircle
+                ) {
+                    DebugRow("Статус", vm.getCleanupStatusText())
+                    Row(
+                        modifier = Modifier.padding(top = 8.dp),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        Button(
+                            onClick = { vm.triggerCleanup() },
+                            modifier = Modifier.weight(1f)
+                        ) {
+                            Text("Почистить сейчас")
+                        }
+                    }
                 }
             }
 
