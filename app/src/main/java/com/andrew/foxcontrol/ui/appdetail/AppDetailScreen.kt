@@ -35,6 +35,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
+import androidx.compose.ui.Alignment.Companion.CenterEnd
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.style.TextAlign
@@ -232,6 +233,37 @@ private fun AppUsageHourlyChart(buckets: List<AppUsageHourBucket>) {
                 ),
             verticalArrangement = Arrangement.spacedBy(2.dp)
         ) {
+            // Legend header — 0  10  20  30  40  50  60
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(20.dp)
+                    .padding(horizontal = 8.dp)
+            ) {
+                Spacer(modifier = Modifier.width(28.dp))
+                Spacer(modifier = Modifier.width(8.dp))
+                Box(
+                    modifier = Modifier
+                        .weight(1f)
+                        .fillMaxHeight()
+                ) {
+                    Row(
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        for (label in listOf("0", "10", "20", "30", "40", "50", "60")) {
+                            Text(
+                                text = label,
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                    }
+                }
+            }
+
             buckets.forEach { bucket ->
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
@@ -258,18 +290,24 @@ private fun AppUsageHourlyChart(buckets: List<AppUsageHourBucket>) {
                             .fillMaxHeight(),
                         contentAlignment = Alignment.CenterStart
                     ) {
-                        // Grid lines — vertical
+                        // Grid lines — vertical, using fillMaxWidth + CenterEnd (fixes offset bug)
                         for (i in 1 until gridLines) {
                             val xFraction = i.toFloat() / gridLines
                             Box(
                                 modifier = Modifier
-                                    .fillMaxHeight()
-                                    .width(0.5.dp)
-                                    .offset(x = (xFraction * 100f).coerceIn(0f, 99f).dp)
-                                    .background(
-                                        MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f)
-                                    )
-                            )
+                                    .fillMaxWidth(xFraction)
+                                    .fillMaxHeight(),
+                                contentAlignment = CenterEnd
+                            ) {
+                                Box(
+                                    modifier = Modifier
+                                        .fillMaxHeight()
+                                        .width(0.5.dp)
+                                        .background(
+                                            MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f)
+                                        )
+                                )
+                            }
                         }
 
                         // Usage bar — grows from left to right
