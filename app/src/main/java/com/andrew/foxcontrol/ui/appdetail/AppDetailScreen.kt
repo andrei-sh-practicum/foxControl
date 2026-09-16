@@ -13,12 +13,16 @@ import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material3.Card
 import androidx.compose.material3.CenterAlignedTopAppBar
-import androidx.compose.material3.Divider
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -33,6 +37,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -108,7 +113,8 @@ private fun AppDetailContent(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(paddingValues)
-                .padding(16.dp),
+                .padding(16.dp)
+                .verticalScroll(rememberScrollState()),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
             // App header with icon and name
@@ -200,7 +206,7 @@ private fun AppDetailContent(
 
 @Composable
 private fun AppUsageHourlyChart(buckets: List<AppUsageHourBucket>) {
-    val chartHeight = 96.dp
+    val rowHeight = 28.dp
     val gridLines = 6
 
     Column(
@@ -216,72 +222,68 @@ private fun AppUsageHourlyChart(buckets: List<AppUsageHourBucket>) {
             modifier = Modifier.padding(vertical = 4.dp)
         )
 
-        // Chart area
-        Row(
+        // Chart area — horizontal bars, one row per hour
+        Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .height(chartHeight + 32.dp) // extra space for labels
                 .background(
                     MaterialTheme.colorScheme.surfaceContainerLow,
                     MaterialTheme.shapes.small
                 ),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.Bottom
+            verticalArrangement = Arrangement.spacedBy(2.dp)
         ) {
             buckets.forEach { bucket ->
-                Column(
-                    horizontalAlignment = Alignment.CenterHorizontally,
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
                     modifier = Modifier
-                        .weight(1f)
-                        .fillMaxHeight()
-                        .padding(horizontal = 1.dp)
+                        .fillMaxWidth()
+                        .height(rowHeight)
+                        .padding(horizontal = 8.dp)
                 ) {
-                    // Column bars — bottom-aligned with empty space on top
+                    // Hour label — shown for EVERY row
+                    Text(
+                        text = bucket.hour.toString().padStart(2, '0'),
+                        style = MaterialTheme.typography.labelMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        textAlign = TextAlign.End,
+                        modifier = Modifier.width(28.dp)
+                    )
+
+                    Spacer(modifier = Modifier.width(8.dp))
+
+                    // Bar track
                     Box(
                         modifier = Modifier
-                            .fillMaxWidth()
+                            .weight(1f)
                             .fillMaxHeight(),
-                        contentAlignment = Alignment.BottomCenter
+                        contentAlignment = Alignment.CenterStart
                     ) {
-                        // Grid lines background
+                        // Grid lines — vertical
                         for (i in 1 until gridLines) {
-                            val yOffset = (-i * (chartHeight.value / gridLines)).dp
+                            val xFraction = i.toFloat() / gridLines
                             Box(
                                 modifier = Modifier
-                                    .fillMaxWidth()
-                                    .offset(y = yOffset),
-                                contentAlignment = Alignment.TopCenter
-                            ) {
-                                Divider(
-                                    modifier = Modifier.fillMaxWidth(),
-                                    thickness = 0.5.dp,
-                                    color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f)
-                                )
-                            }
+                                    .fillMaxHeight()
+                                    .width(0.5.dp)
+                                    .offset(x = (xFraction * 100f).coerceIn(0f, 99f).dp)
+                                    .background(
+                                        MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f)
+                                    )
+                            )
                         }
 
-                        // Usage bar (primary color)
+                        // Usage bar — grows from left to right
                         if (bucket.usageMinutes > 0) {
                             Box(
                                 modifier = Modifier
-                                    .fillMaxWidth()
-                                    .fillMaxHeight(bucket.usageMinutes / 60f)
+                                    .fillMaxHeight()
+                                    .fillMaxWidth(bucket.usageMinutes / 60f)
                                     .background(
                                         MaterialTheme.colorScheme.primary,
                                         MaterialTheme.shapes.extraSmall
                                     )
                             )
                         }
-                    }
-
-                    // Hour label (every other, no ":00" suffix)
-                    if (bucket.hour % 2 == 0) {
-                        Text(
-                            text = bucket.hour.toString().padStart(2, '0'),
-                            style = MaterialTheme.typography.labelSmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            modifier = Modifier.padding(top = 2.dp)
-                        )
                     }
                 }
             }
