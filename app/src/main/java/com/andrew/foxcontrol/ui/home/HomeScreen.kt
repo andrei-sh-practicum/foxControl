@@ -106,7 +106,7 @@ private fun HomeContent(
                     SegmentedButton(
                         selected = state.period == period,
                         onClick = { onEvent(HomeEvent.ChangePeriod(period)) },
-                        shape = SegmentedButtonDefaults.itemShape(index = index, count = 2)
+                        shape = SegmentedButtonDefaults.itemShape(index = index, count = HomePeriod.values().size)
                     ) {
                         Text(
                             text = period.label,
@@ -116,59 +116,99 @@ private fun HomeContent(
                 }
             }
 
-            // Exceeded limits block (Today tab only)
-            if (state.period == HomePeriod.Today && state.exceededApps.isNotEmpty()) {
-                ExceededLimitsBlock(
-                    items = state.exceededApps,
-                    onClick = { packageName -> onAppDetailClick(packageName) }
-                )
-            }
-
-            // Total usage summary
-            if (state.period == HomePeriod.Today) {
-                state.dailyStats?.let { dailyStats ->
-                    Column(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(horizontal = 16.dp)
-                    ) {
-                        Text(
-                            text = "Итого за день",
-                            style = MaterialTheme.typography.titleMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                        Text(
-                            text = formatDuration(dailyStats.totalUsageMs),
-                            style = MaterialTheme.typography.headlineMedium
-                        )
-                        Text(
-                            text = "${dailyStats.apps.size} приложений",
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
+            // Exceeded limits block (Today and Yesterday tabs)
+            when (state.period) {
+                HomePeriod.Today -> {
+                    if (state.exceededApps.isNotEmpty()) {
+                        ExceededLimitsBlock(
+                            items = state.exceededApps,
+                            onClick = { packageName -> onAppDetailClick(packageName) }
                         )
                     }
                 }
-            } else {
-                state.weeklyStats?.let { weeklyStats ->
-                    Column(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(horizontal = 16.dp)
-                    ) {
-                        Text(
-                            text = "Итого за неделю",
-                            style = MaterialTheme.typography.titleMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                HomePeriod.Yesterday -> {
+                    if (state.exceededAppsYesterday.isNotEmpty()) {
+                        ExceededLimitsBlock(
+                            items = state.exceededAppsYesterday,
+                            onClick = { packageName -> onAppDetailClick(packageName) }
                         )
-                        Text(
-                            text = formatDuration(weeklyStats.totalUsageMs),
-                            style = MaterialTheme.typography.headlineMedium
-                        )
-                        Text(
-                            text = "${weeklyStats.apps.size} приложений",
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
+                    }
+                }
+                HomePeriod.Week -> {}
+            }
+
+            // Total usage summary
+            when (state.period) {
+                HomePeriod.Today -> {
+                    state.dailyStats?.let { dailyStats ->
+                        Column(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 16.dp)
+                        ) {
+                            Text(
+                                text = "Итого за день",
+                                style = MaterialTheme.typography.titleMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                            Text(
+                                text = formatDuration(dailyStats.totalUsageMs),
+                                style = MaterialTheme.typography.headlineMedium
+                            )
+                            Text(
+                                text = "${dailyStats.apps.size} приложений",
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                    }
+                }
+                HomePeriod.Yesterday -> {
+                    state.yesterdayStats?.let { yesterdayStats ->
+                        Column(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 16.dp)
+                        ) {
+                            Text(
+                                text = "Итого за вчера",
+                                style = MaterialTheme.typography.titleMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                            Text(
+                                text = formatDuration(yesterdayStats.totalUsageMs),
+                                style = MaterialTheme.typography.headlineMedium
+                            )
+                            Text(
+                                text = "${yesterdayStats.apps.size} приложений",
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                    }
+                }
+                HomePeriod.Week -> {
+                    state.weeklyStats?.let { weeklyStats ->
+                        Column(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 16.dp)
+                        ) {
+                            Text(
+                                text = "Итого за неделю",
+                                style = MaterialTheme.typography.titleMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                            Text(
+                                text = formatDuration(weeklyStats.totalUsageMs),
+                                style = MaterialTheme.typography.headlineMedium
+                            )
+                            Text(
+                                text = "${weeklyStats.apps.size} приложений",
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
                     }
                 }
             }
@@ -177,7 +217,8 @@ private fun HomeContent(
             if (state.isLoading) {
                 Column(
                     modifier = Modifier
-                        .fillMaxSize()
+                        .fillMaxWidth()
+                        .weight(1f)
                         .padding(16.dp),
                     horizontalAlignment = Alignment.CenterHorizontally,
                     verticalArrangement = Arrangement.Center
@@ -193,7 +234,8 @@ private fun HomeContent(
                 // Error state
                 Column(
                     modifier = Modifier
-                        .fillMaxSize()
+                        .fillMaxWidth()
+                        .weight(1f)
                         .padding(16.dp),
                     horizontalAlignment = Alignment.CenterHorizontally,
                     verticalArrangement = Arrangement.Center
@@ -227,7 +269,36 @@ private fun HomeContent(
                 // Empty state for Today
                 Column(
                     modifier = Modifier
-                        .fillMaxSize()
+                        .fillMaxWidth()
+                        .weight(1f)
+                        .padding(16.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.Center
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.BarChart,
+                        contentDescription = null,
+                        modifier = Modifier.size(64.dp),
+                        tint = MaterialTheme.colorScheme.primary
+                    )
+                    Text(
+                        text = "Нет данных",
+                        style = MaterialTheme.typography.titleLarge,
+                        modifier = Modifier.padding(top = 16.dp)
+                    )
+                    Text(
+                        text = "Статистика появится после начала использования приложений",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.padding(top = 8.dp)
+                    )
+                }
+            } else if (state.period == HomePeriod.Yesterday && (state.yesterdayStats == null || state.yesterdayStats.apps.isEmpty())) {
+                // Empty state for Yesterday
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .weight(1f)
                         .padding(16.dp),
                     horizontalAlignment = Alignment.CenterHorizontally,
                     verticalArrangement = Arrangement.Center
@@ -254,7 +325,8 @@ private fun HomeContent(
                 // Empty state for Week
                 Column(
                     modifier = Modifier
-                        .fillMaxSize()
+                        .fillMaxWidth()
+                        .weight(1f)
                         .padding(16.dp),
                     horizontalAlignment = Alignment.CenterHorizontally,
                     verticalArrangement = Arrangement.Center
@@ -278,25 +350,16 @@ private fun HomeContent(
                     )
                 }
             } else {
-                // Hourly usage chart (Today only)
-                if (state.period == HomePeriod.Today) {
-                    AppUsageHourlyChart(
-                        buckets = state.hourlyUsageToday,
-                        title = "Активность по часам"
-                    )
-                    HorizontalDivider(
-                        modifier = Modifier.padding(vertical = 8.dp)
-                    )
-                }
-
                 // App list
-                val apps = if (state.period == HomePeriod.Today) {
-                    state.dailyStats?.apps ?: emptyList()
-                } else {
-                    state.weeklyStats?.apps ?: emptyList()
+                val apps = when (state.period) {
+                    HomePeriod.Today -> state.dailyStats?.apps ?: emptyList()
+                    HomePeriod.Yesterday -> state.yesterdayStats?.apps ?: emptyList()
+                    HomePeriod.Week -> state.weeklyStats?.apps ?: emptyList()
                 }
                 LazyColumn(
-                    modifier = Modifier.fillMaxSize(),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .weight(1f),
                     contentPadding = androidx.compose.foundation.layout.PaddingValues(16.dp),
                     verticalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
@@ -310,6 +373,25 @@ private fun HomeContent(
                             category = app.category,
                             onClick = { onAppDetailClick(app.packageName) }
                         )
+                    }
+
+                    if (state.period == HomePeriod.Today || state.period == HomePeriod.Yesterday) {
+                        item {
+                            HorizontalDivider(
+                                modifier = Modifier.padding(vertical = 8.dp)
+                            )
+                            if (state.period == HomePeriod.Today) {
+                                AppUsageHourlyChart(
+                                    buckets = state.hourlyUsageToday,
+                                    title = "Активность по часам"
+                                )
+                            } else {
+                                AppUsageHourlyChart(
+                                    buckets = state.hourlyUsageYesterday,
+                                    title = "Активность по часам"
+                                )
+                            }
+                        }
                     }
                 }
             }

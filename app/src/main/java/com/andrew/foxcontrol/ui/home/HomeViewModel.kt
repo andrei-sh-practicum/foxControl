@@ -45,35 +45,68 @@ class HomeViewModel @Inject constructor(
                 val period = _state.value.period
                 val today = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(Date())
 
-                if (period == HomePeriod.Today) {
-                    val dailyStats = usageStatsRepository.getDailyUsage(today)
-                    val appLimits = usageStatsRepository.getAppLimits()
-                    val exceededApps = computeExceededApps(dailyStats, appLimits)
-                    val hourlyUsageToday = usageStatsRepository.getHourlyUsageForAllApps(today)
+                when (period) {
+                    HomePeriod.Today -> {
+                        val dailyStats = usageStatsRepository.getDailyUsage(today)
+                        val appLimits = usageStatsRepository.getAppLimits()
+                        val exceededApps = computeExceededApps(dailyStats, appLimits)
+                        val hourlyUsageToday = usageStatsRepository.getHourlyUsageForAllApps(today)
 
-                    _state.update {
-                        it.copy(
-                            dailyStats = dailyStats,
-                            weeklyStats = null,
-                            exceededApps = exceededApps,
-                            hourlyUsageToday = hourlyUsageToday,
-                            isLoading = false
-                        )
+                        _state.update {
+                            it.copy(
+                                dailyStats = dailyStats,
+                                yesterdayStats = null,
+                                weeklyStats = null,
+                                exceededApps = exceededApps,
+                                exceededAppsYesterday = emptyList(),
+                                hourlyUsageToday = hourlyUsageToday,
+                                hourlyUsageYesterday = emptyList(),
+                                isLoading = false
+                            )
+                        }
                     }
-                } else {
-                    val calendar = Calendar.getInstance()
-                    val endDate = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(calendar.time)
-                    calendar.add(Calendar.DAY_OF_YEAR, -6)
-                    val startDate = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(calendar.time)
+                    HomePeriod.Yesterday -> {
+                        val calendar = Calendar.getInstance()
+                        calendar.add(Calendar.DAY_OF_YEAR, -1)
+                        val yesterday = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(calendar.time)
 
-                    val weeklyStats = usageStatsRepository.getWeeklyUsage(startDate, endDate)
-                    _state.update {
-                        it.copy(
-                            dailyStats = null,
-                            weeklyStats = weeklyStats,
-                            exceededApps = emptyList(),
-                            isLoading = false
-                        )
+                        val yesterdayStats = usageStatsRepository.getDailyUsage(yesterday)
+                        val appLimits = usageStatsRepository.getAppLimits()
+                        val exceededAppsYesterday = computeExceededApps(yesterdayStats, appLimits)
+                        val hourlyUsageYesterday = usageStatsRepository.getHourlyUsageForAllApps(yesterday)
+
+                        _state.update {
+                            it.copy(
+                                yesterdayStats = yesterdayStats,
+                                dailyStats = null,
+                                weeklyStats = null,
+                                exceededAppsYesterday = exceededAppsYesterday,
+                                exceededApps = emptyList(),
+                                hourlyUsageYesterday = hourlyUsageYesterday,
+                                hourlyUsageToday = emptyList(),
+                                isLoading = false
+                            )
+                        }
+                    }
+                    HomePeriod.Week -> {
+                        val calendar = Calendar.getInstance()
+                        val endDate = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(calendar.time)
+                        calendar.add(Calendar.DAY_OF_YEAR, -6)
+                        val startDate = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(calendar.time)
+
+                        val weeklyStats = usageStatsRepository.getWeeklyUsage(startDate, endDate)
+                        _state.update {
+                            it.copy(
+                                dailyStats = null,
+                                yesterdayStats = null,
+                                weeklyStats = weeklyStats,
+                                exceededApps = emptyList(),
+                                exceededAppsYesterday = emptyList(),
+                                hourlyUsageToday = emptyList(),
+                                hourlyUsageYesterday = emptyList(),
+                                isLoading = false
+                            )
+                        }
                     }
                 }
             } catch (e: Exception) {
@@ -120,9 +153,12 @@ data class HomeState(
     val isLoading: Boolean = true,
     val period: HomePeriod = HomePeriod.Today,
     val dailyStats: DailyUsageStats? = null,
+    val yesterdayStats: DailyUsageStats? = null,
     val weeklyStats: WeeklyUsageStats? = null,
     val exceededApps: List<ExceededAppInfo> = emptyList(),
+    val exceededAppsYesterday: List<ExceededAppInfo> = emptyList(),
     val hourlyUsageToday: List<AppUsageHourBucket> = emptyList(),
+    val hourlyUsageYesterday: List<AppUsageHourBucket> = emptyList(),
     val error: String? = null
 )
 
@@ -136,6 +172,7 @@ data class ExceededAppInfo(
 
 enum class HomePeriod(val label: String) {
     Today("Сегодня"),
+    Yesterday("Вчера"),
     Week("Неделя")
 }
 
