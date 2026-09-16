@@ -90,10 +90,9 @@ try/catch с логом через `TrackingLogStorage`, как это сдел�
 В проекте уже есть ровно такой паттерн — три `java.util.Timer` внутри `TrackingJob.start()`
 (`heartbeatTimer`, `usageStatsTimer`, `emailReportTimer`, `TrackingJob.kt:46-89`), каждый со своим
 интервалом, каждый вызывает `GlobalScope.launch { ... }` с try/catch и логом в `TrackingLogStorage`.
-`WorkManager`/`AlarmManager`, упомянутые в `CLAUDE.md` (`core/email` — `SendReportWorker`,
+`WorkManager`/`AlarmManager`,  (`core/email` — `SendReportWorker`,
 `ReportAlarmReceiver`) в коде фактически отсутствуют — email-отчёты тоже работают через **свой** таймер
-(`emailReportTimer` → `emailReportSender.checkAndSendIfDue()`), т.е. `CLAUDE.md` в этой части описывает
-устаревший/нереализованный вариант дизайна. В проекте нет ни одной зависимости `WorkManager` в
+(`emailReportTimer` → `emailReportSender.checkAndSendIfDue()`) В проекте нет ни одной зависимости `WorkManager` в
 `app/build.gradle.kts`.
 
 Предлагается **не вводить новую инфраструктуру**, а добавить `cleanupTimer` четвёртым таймером в
@@ -153,21 +152,9 @@ cleanupTimer = Timer("data_cleanup").apply {
 | `core/tracking/TrackingForegroundService.kt:45` | `trackingJob = TrackingJob(this, usageStatsRepository, alertManager, emailReportSender)` → добавить 5-м аргументом `dataCleanupManager`. `TrackingForegroundService` — `@AndroidEntryPoint`, `usageStatsRepository`/`alertManager`/`emailReportSender` уже инжектятся как `@Inject lateinit var` (`TrackingForegroundService.kt:28-36`) — `dataCleanupManager` добавляется туда же тем же способом |
 | `di/AppModule.kt` | **Не требуется** — все 4 DAO уже `@Provides @Singleton`, `DataCleanupManager` соберётся автоматически через `@Inject constructor` |
 
-## 6. Тестирование
 
-В проекте нет Room/instrumented-тестов на DAO (только JVM unit-тесты с `mockk`, см.
-`app/src/test/java/com/andrew/foxcontrol/core/alerts/AlertManagerLogicTest.kt`,
-`.../data/repository/UsageStatsRepositoryLogicTest.kt`). Предлагается по той же схеме:
 
-- `DataCleanupManagerTest` (JVM, `mockk`) — мокнуть 4 DAO, проверить что `purgeOldData()`:
-  - зовёт `deleteOldSessions` с датой ровно `сегодня - 7` (формат `YYYY-MM-DD`);
-  - зовёт три `Long`-варианта с одним и тем же `cutoffMs` (согласованность между таблицами);
-  - если один DAO бросает исключение — остальные три всё равно вызываются (try/catch per-DAO).
-- Ручная проверка: `./gradlew :app:installDebug`, в `ui/debug/DebugScreen` (`TabDatabase`) посмотреть
-  `getSessionCount()`/`getDateRange()` до и после принудительного вызова (можно временно дернуть
-  `purgeOldData()` из debug-экрана вручную, см. п.7).
-
-## 7. Дополнительно (не обязательно, но дёшево) — видимость в Debug-экране
+## Дополнительно (не обязательно, но дёшево) — видимость в Debug-экране
 
 `ui/debug/DebugScreen.kt` (`TabDatabase`) уже показывает `sessionCount`/`dateRange`/`uniquePackageCount`
 через `DebugSection`/`DebugRow` (`DebugScreen.kt:117-193`). Имеет смысл добавить туда же:
@@ -175,9 +162,8 @@ cleanupTimer = Timer("data_cleanup").apply {
   как `email_settings` хранит key-value);
 - кнопку "Почистить сейчас" для ручного триггера (диагностика на девайсе без ожидания 12 часов).
 
-Это расширение объёма, не часть исходного запроса — вынесено отдельным пунктом, реализовывать по запросу.
 
-## 8. Что сознательно не входит в объём
+## Что сознательно не входит в объём
 
 - Изменения схемы БД / новые миграции — не нужны, все нужные колонки и DELETE-запросы уже существуют.
 - `tracked_apps`, `app_limits`, `global_limit`, `email_recipients`, `email_settings`, `users` — не входят в
