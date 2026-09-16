@@ -337,6 +337,20 @@ class UsageStatsRepositoryImpl @Inject constructor(
             return (6..21).map { AppUsageHourBucket(it, 0) }
         }
     }
+
+    override suspend fun getHourlyUsageForAllApps(date: String): List<AppUsageHourBucket> {
+        try {
+            val sessions = usageSessionDao.getSessionsByDateSync(date)
+            val intervals = sessions.map { it.startTime to it.endTime }
+            TrackingLogStorage.add("Repo", "getHourlyUsageForAllApps: date=$date sessions=${intervals.size}")
+
+            return AppUsageHourCalculator.calculate(intervals, System.currentTimeMillis())
+        } catch (e: Exception) {
+            TrackingLogStorage.add("Repo", "getHourlyUsageForAllApps EXCEPTION: ${e.message}")
+            TrackingLogStorage.add("Repo", e.stackTraceToString())
+            return (6..21).map { AppUsageHourBucket(it, 0) }
+        }
+    }
 }
 
 data class DebugInfo(

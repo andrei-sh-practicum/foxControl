@@ -20,6 +20,7 @@ interface UsageStatsRepository {
     suspend fun clearTrackedApps()
     suspend fun getServiceDowntimeBuckets(date: String): List<DowntimeHourBucket>
     suspend fun getHourlyUsageForPackage(packageName: String, date: String): List<AppUsageHourBucket>
+    suspend fun getHourlyUsageForAllApps(date: String): List<AppUsageHourBucket>
     suspend fun getTrackedApps(): List<com.andrew.foxcontrol.data.local.entity.TrackedAppEntity>
     suspend fun getAppLimits(): List<com.andrew.foxcontrol.data.local.entity.AppLimitEntity>
     suspend fun setAppLimit(packageName: String, dailyLimitMinutes: Int, enabled: Boolean)

@@ -3,6 +3,7 @@ package com.andrew.foxcontrol.ui.home
 import androidx.compose.runtime.Immutable
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.andrew.foxcontrol.core.tracking.AppUsageHourBucket
 import com.andrew.foxcontrol.data.local.entity.AppLimitEntity
 import com.andrew.foxcontrol.domain.model.DailyUsageStats
 import com.andrew.foxcontrol.domain.model.WeeklyUsageStats
@@ -48,12 +49,14 @@ class HomeViewModel @Inject constructor(
                     val dailyStats = usageStatsRepository.getDailyUsage(today)
                     val appLimits = usageStatsRepository.getAppLimits()
                     val exceededApps = computeExceededApps(dailyStats, appLimits)
+                    val hourlyUsageToday = usageStatsRepository.getHourlyUsageForAllApps(today)
 
                     _state.update {
                         it.copy(
                             dailyStats = dailyStats,
                             weeklyStats = null,
                             exceededApps = exceededApps,
+                            hourlyUsageToday = hourlyUsageToday,
                             isLoading = false
                         )
                     }
@@ -119,6 +122,7 @@ data class HomeState(
     val dailyStats: DailyUsageStats? = null,
     val weeklyStats: WeeklyUsageStats? = null,
     val exceededApps: List<ExceededAppInfo> = emptyList(),
+    val hourlyUsageToday: List<AppUsageHourBucket> = emptyList(),
     val error: String? = null
 )
 
