@@ -4,6 +4,7 @@ import android.content.Context
 import android.os.Build
 import android.util.Log
 import java.io.File
+import java.io.RandomAccessFile
 import java.text.SimpleDateFormat
 import java.util.*
 
@@ -11,34 +12,22 @@ object TrackingLogStorage {
 
     private const val TAG = "FoxControlDebug"
     private const val LOG_FILE_NAME = "foxcontrol_tracking.log"
-    private const val MAX_LOG_LINES = 1000
+    const val MAX_LOG_LINES = 1000
 
-    // In-memory buffer for fast UI access (filled from file on init)
-    private val logBuffer = mutableListOf<String>()
+    // Upper bound of bytes read from the end of the file — protects from OOM on a huge log
+    private const val MAX_TAIL_BYTES = 1024 * 1024L
+    private const val TAIL_CHUNK_BYTES = 16 * 1024
+
+    // In-memory buffer (oldest first, same order as the file) — fallback when the file is unreadable
+    private val logBuffer = kotlin.collections.ArrayDeque<String>()
     private var logFile: File? = null
     private var contextRef: Context? = null
+    @Volatile
     private var initialized = false
 
     fun init(context: Context) {
-        try {
-            val file = File(context.filesDir, LOG_FILE_NAME)
-            logFile = file
-            contextRef = context
-            initialized = true
-
-            // Load existing log into buffer
-            if (file.exists()) {
-                try {
-                    file.readLines().filter { it.isNotBlank() }.take(MAX_LOG_LINES).forEach { logBuffer.add(it) }
-                    Log.d(TAG, "Loaded ${logBuffer.size} existing log entries from file: ${file.absolutePath}")
-                } catch (e: Exception) {
-                    Log.e(TAG, "Failed to load log file: ${e.message}", e)
-                }
-            } else {
-                Log.d(TAG, "Log file does not exist yet: ${file.absolutePath}")
-            }
-        } catch (e: Exception) {
-            Log.e(TAG, "Failed to initialize TrackingLogStorage: ${e.message}", e)
+        synchronized(this) {
+            initFile(context)
         }
     }
 
@@ -60,33 +49,91 @@ object TrackingLogStorage {
      */
     fun add(context: Context, tag: String, message: String) {
         synchronized(this) {
-            if (!initialized) {
-                try {
-                    val file = File(context.filesDir, LOG_FILE_NAME)
-                    logFile = file
-                    contextRef = context
-                    initialized = true
+            if (!initialized) initFile(context)
+        }
+        if (!initialized) return
+        addInternal(tag, message)
+    }
 
-                    Log.d(TAG, "TrackingLogStorage initialized from context, file: ${file.absolutePath}")
+    /**
+     * Opens the log file, trims it to the last [MAX_LOG_LINES] lines and loads them into the buffer.
+     * Only the tail of the file is read, so an oversized log can't cause OutOfMemoryError.
+     */
+    private fun initFile(context: Context) {
+        if (initialized) return
+        try {
+            val file = File(context.filesDir, LOG_FILE_NAME)
+            logFile = file
+            contextRef = context
+            initialized = true
 
-                    // Load existing lines into buffer
-                    if (file.exists()) {
-                        try {
-                            file.readLines().filter { it.isNotBlank() }.take(MAX_LOG_LINES).forEach { logBuffer.add(it) }
-                            Log.d(TAG, "Loaded ${logBuffer.size} existing log entries from file")
-                        } catch (e: Exception) {
-                            Log.e(TAG, "Failed to load log file on worker init: ${e.message}", e)
-                        }
-                    } else {
-                        Log.d(TAG, "Log file does not exist yet: ${file.absolutePath}")
-                    }
-                } catch (e: Exception) {
-                    Log.e(TAG, "Failed to auto-initialize TrackingLogStorage from context: ${e.message}", e)
-                    return
-                }
+            if (!file.exists()) {
+                Log.d(TAG, "Log file does not exist yet: ${file.absolutePath}")
+                return
+            }
+
+            val sizeBefore = file.length()
+            val lines = readTailLines(file, MAX_LOG_LINES)
+            rewriteFile(file, lines)
+            logBuffer.clear()
+            logBuffer.addAll(lines)
+            Log.d(TAG, "Log file trimmed: $sizeBefore -> ${file.length()} bytes, ${lines.size} lines kept")
+        } catch (t: Throwable) {
+            // Throwable, not Exception: must never crash app start (e.g. OutOfMemoryError)
+            Log.e(TAG, "Failed to initialize TrackingLogStorage: ${t.message}", t)
+            try {
+                logFile?.delete()
+            } catch (_: Throwable) {
             }
         }
-        addInternal(tag, message)
+    }
+
+    /**
+     * Reads the last [maxLines] non-blank lines of [file], scanning backwards from the end
+     * and reading at most [MAX_TAIL_BYTES].
+     */
+    private fun readTailLines(file: File, maxLines: Int): List<String> {
+        RandomAccessFile(file, "r").use { raf ->
+            val length = raf.length()
+            if (length == 0L) return emptyList()
+
+            val minPos = maxOf(0L, length - MAX_TAIL_BYTES)
+            var pos = length
+            var newlines = 0
+            val buf = ByteArray(TAIL_CHUNK_BYTES)
+
+            // Move pos backwards until we've seen enough line breaks or hit the limit
+            while (pos > minPos && newlines <= maxLines) {
+                val readSize = minOf(TAIL_CHUNK_BYTES.toLong(), pos - minPos).toInt()
+                pos -= readSize
+                raf.seek(pos)
+                raf.readFully(buf, 0, readSize)
+                for (i in 0 until readSize) {
+                    if (buf[i] == '\n'.code.toByte()) newlines++
+                }
+            }
+
+            val bytes = ByteArray((length - pos).toInt())
+            raf.seek(pos)
+            raf.readFully(bytes)
+
+            var lines = String(bytes, Charsets.UTF_8).split('\n')
+            // First line is likely cut in the middle if we didn't start at the beginning of the file
+            if (pos > 0 && lines.isNotEmpty()) lines = lines.drop(1)
+            return lines.filter { it.isNotBlank() }.takeLast(maxLines)
+        }
+    }
+
+    private fun rewriteFile(file: File, lines: List<String>) {
+        val tmp = File(file.parentFile, "$LOG_FILE_NAME.tmp")
+        tmp.writeText(if (lines.isEmpty()) "" else lines.joinToString("\n", postfix = "\n"))
+        if (!tmp.renameTo(file)) {
+            file.delete()
+            if (!tmp.renameTo(file)) {
+                Log.e(TAG, "Failed to replace log file with trimmed version")
+                tmp.delete()
+            }
+        }
     }
 
     private fun addInternal(tag: String, message: String) {
@@ -99,17 +146,17 @@ object TrackingLogStorage {
             val timestamp = SimpleDateFormat("HH:mm:ss.SSS", Locale.getDefault()).format(Date())
             val line = "[$timestamp] [$tag] $message"
 
-            // Add to in-memory buffer
-            logBuffer.add(0, line)
-            if (logBuffer.size > MAX_LOG_LINES) {
-                logBuffer.removeAt(logBuffer.size - 1)
-            }
+            synchronized(this) {
+                logBuffer.addLast(line)
+                while (logBuffer.size > MAX_LOG_LINES) {
+                    logBuffer.removeFirst()
+                }
 
-            // Append to file using appendText (more reliable than RandomAccessFile)
-            try {
-                file.appendText(line + "\n")
-            } catch (e: Exception) {
-                Log.e(TAG, "Failed to append to log file '${file.absolutePath}': ${e.message}", e)
+                try {
+                    file.appendText(line + "\n")
+                } catch (e: Exception) {
+                    Log.e(TAG, "Failed to append to log file '${file.absolutePath}': ${e.message}", e)
+                }
             }
         } catch (e: Exception) {
             Log.e(TAG, "TrackingLogStorage.addInternal failed: ${e.message}", e)
@@ -117,36 +164,33 @@ object TrackingLogStorage {
     }
 
     /**
-     * Get all logs — always reads from file to ensure consistency
-     * across processes (e.g., Worker processes).
+     * Get the last [MAX_LOG_LINES] log lines — reads only the tail of the file
+     * to stay consistent across processes (e.g., Worker processes).
      */
     fun getAllLogs(): String {
         val file = logFile
 
-        // Always try to read from file first (authoritative source)
         if (file?.exists() == true) {
             try {
-                val lines = file.readLines().filter { it.isNotBlank() }
+                val lines = readTailLines(file, MAX_LOG_LINES)
                 if (lines.isNotEmpty()) {
-                    Log.d(TAG, "Read ${lines.size} lines from file: ${file.absolutePath}")
-                    // Take last MAX_LOG_LINES to handle overflow
-                    val recent = if (lines.size > MAX_LOG_LINES) lines.subList(lines.size - MAX_LOG_LINES, lines.size) else lines
-                    return recent.joinToString("\n")
+                    return lines.joinToString("\n")
                 } else {
                     Log.d(TAG, "Log file is empty: ${file.absolutePath}")
                 }
-            } catch (e: Exception) {
-                Log.e(TAG, "Failed to read log file: ${e.message}", e)
+            } catch (t: Throwable) {
+                Log.e(TAG, "Failed to read log file: ${t.message}", t)
             }
         } else {
             Log.d(TAG, "Log file does not exist or is not readable: ${file?.absolutePath}")
         }
 
         // Fallback to in-memory buffer
-        if (logBuffer.isEmpty()) {
+        val snapshot = synchronized(this) { logBuffer.toList() }
+        if (snapshot.isEmpty()) {
             return "Нет записей лога\n\nПричина: логгер инициализирован, но ни одного события не произошло.\nЭто означает, что сервис не запущен или упал при запуске."
         }
-        return logBuffer.joinToString("\n")
+        return snapshot.joinToString("\n")
     }
 
     fun getLogStats(): String {

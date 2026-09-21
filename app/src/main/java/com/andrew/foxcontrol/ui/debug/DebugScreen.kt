@@ -285,7 +285,7 @@ private fun TabLog(viewModel: DebugViewModel) {
 
         // Full log
         DebugSection(
-            title = "Полный лог (последние 500 записей)",
+            title = "Полный лог (последние ${com.andrew.foxcontrol.core.tracking.TrackingLogStorage.MAX_LOG_LINES} записей)",
             status = "Текст",
             icon = Icons.Default.BugReport
         ) {

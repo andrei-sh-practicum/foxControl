@@ -143,11 +143,9 @@ class UsageStatsRepositoryImpl @Inject constructor(
             // Check exclusion BEFORE writing anything
             val existingApp = trackedAppDao.getTrackedApp(packageName)
             if (existingApp?.isExcluded == true) {
-                TrackingLogStorage.add("Repo", "trackUsageSession SKIPPED (excluded): $packageName")
                 return
             }
 
-            TrackingLogStorage.add("Repo", "insertSession: $packageName ($appName) durationMs=$durationMs")
             val date = dateFormat.format(Date(startTime))
             val session = UsageSessionEntity(
                 packageName = packageName,
@@ -159,7 +157,6 @@ class UsageStatsRepositoryImpl @Inject constructor(
                 isEntertainment = isEntertainment
             )
             usageSessionDao.insertSession(session)
-            TrackingLogStorage.add("Repo", "insertSession OK: $packageName saved to Room")
 
             // Upsert tracked app with category resolution
             val category = CategoryResolver.resolve(packageManager, packageName)
@@ -176,11 +173,9 @@ class UsageStatsRepositoryImpl @Inject constructor(
                     totalUsageMs = durationMs
                 )
                 trackedAppDao.insertTrackedApp(trackedApp)
-                TrackingLogStorage.add("Repo", "insertTrackedApp (first time): $packageName category=$category")
             } else {
                 // Update usage for existing app
                 trackedAppDao.updateUsage(packageName, durationMs, endTime)
-                TrackingLogStorage.add("Repo", "updateTrackedApp: $packageName")
             }
         } catch (e: Exception) {
             TrackingLogStorage.add("Repo", "trackUsageSession EXCEPTION: ${e.message}")
@@ -313,7 +308,6 @@ class UsageStatsRepositoryImpl @Inject constructor(
 
             val heartbeats = serviceHeartbeatDao.getHeartbeatsBetween(dayStart, dayEnd)
             val timestamps = heartbeats.map { it.timestamp }
-            TrackingLogStorage.add("Repo", "getServiceDowntimeBuckets: date=$date heartbeats=${timestamps.size}")
 
             return DowntimeCalculator.calculate(timestamps, System.currentTimeMillis())
         } catch (e: Exception) {
@@ -328,7 +322,6 @@ class UsageStatsRepositoryImpl @Inject constructor(
         try {
             val sessions = usageSessionDao.getSessionsByPackageAndDate(packageName, date)
             val intervals = sessions.map { it.startTime to it.endTime }
-            TrackingLogStorage.add("Repo", "getHourlyUsageForPackage: $packageName sessions=${intervals.size}")
 
             return AppUsageHourCalculator.calculate(intervals, System.currentTimeMillis())
         } catch (e: Exception) {
@@ -342,7 +335,6 @@ class UsageStatsRepositoryImpl @Inject constructor(
         try {
             val sessions = usageSessionDao.getSessionsByDateSync(date)
             val intervals = sessions.map { it.startTime to it.endTime }
-            TrackingLogStorage.add("Repo", "getHourlyUsageForAllApps: date=$date sessions=${intervals.size}")
 
             return AppUsageHourCalculator.calculate(intervals, System.currentTimeMillis())
         } catch (e: Exception) {

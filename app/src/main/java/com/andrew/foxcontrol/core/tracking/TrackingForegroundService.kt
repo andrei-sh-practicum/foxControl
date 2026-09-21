@@ -43,19 +43,18 @@ class TrackingForegroundService : Service() {
 
     private lateinit var trackingJob: TrackingJob
     private var checkPermissionJob: Job? = null
+    // Log permission loss/recovery only on state change, not every minute
+    @Volatile
+    private var permissionsWereLost = false
 
     override fun onCreate() {
         super.onCreate()
         trackingJob = TrackingJob(this, usageStatsRepository, alertManager, emailReportSender, dataCleanupManager)
         TrackingLogStorage.add("Service", "TrackingForegroundService created")
-        TrackingLogStorage.add("Service", "Package: ${packageName}")
-        TrackingLogStorage.add("Permission", "UsageStats: ${TrackingLogStorage.getPermissionInfo(this)}")
+        TrackingLogStorage.add("Permission", "Permissions at start:\n${TrackingLogStorage.getPermissionInfo(this)}")
         createNotificationChannel()
-        TrackingLogStorage.add("Service", "Starting trackingJob.start()")
         trackingJob.start()
-        TrackingLogStorage.add("Service", "trackingJob.start() called")
         startPermissionMonitoring()
-        TrackingLogStorage.add("Service", "startPermissionMonitoring() called")
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
@@ -68,6 +67,7 @@ class TrackingForegroundService : Service() {
     override fun onDestroy() {
         super.onDestroy()
         Log.d(TAG, "TrackingForegroundService destroyed")
+        TrackingLogStorage.add("Service", "TrackingForegroundService destroyed")
         trackingJob.stop()
         checkPermissionJob?.cancel()
     }
@@ -79,13 +79,25 @@ class TrackingForegroundService : Service() {
                     val status = permissionMonitor.checkPermissions()
                     if (!status.allGranted) {
                         Log.w(TAG, "Permissions not fully granted: missing ${status.missingCount}")
+                        if (!permissionsWereLost) {
+                            TrackingLogStorage.add(
+                                "Permission",
+                                "Permissions LOST (missing ${status.missingCount}):\n${TrackingLogStorage.getPermissionInfo(this@TrackingForegroundService)}"
+                            )
+                            permissionsWereLost = true
+                        }
                         if (!status.usageStats || !status.overlay) {
                             Log.e(TAG, "Critical permissions lost! Restarting service...")
                             restartService()
                         }
+                    } else if (permissionsWereLost) {
+                        TrackingLogStorage.add("Permission", "Permissions RESTORED")
+                        permissionsWereLost = false
                     }
                 } catch (e: Exception) {
                     Log.e(TAG, "Error checking permissions", e)
+                    TrackingLogStorage.add("Permission", "checkPermissions ERROR: ${e.message}")
+                    TrackingLogStorage.add("Permission", e.stackTraceToString())
                 }
                 delay(60_000) // Check every minute
             }
@@ -104,11 +116,14 @@ class TrackingForegroundService : Service() {
                 if (status.allGranted) {
                     trackingJob.start()
                     Log.d(TAG, "Service restarted successfully after permission recovery")
+                    TrackingLogStorage.add("Service", "TrackingJob restarted after permission recovery")
                 } else {
                     Log.w(TAG, "Cannot restart service - permissions still not granted")
                 }
             } catch (e: Exception) {
                 Log.e(TAG, "Error restarting service", e)
+                TrackingLogStorage.add("Service", "restartService ERROR: ${e.message}")
+                TrackingLogStorage.add("Service", e.stackTraceToString())
             }
         }
     }

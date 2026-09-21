@@ -35,6 +35,9 @@ class TrackingJob(
     private val lastForegroundTime = ConcurrentHashMap<String, Long>()
     // Track the last poll end time per package to compute accurate deltas
     private val lastPollEndTime = ConcurrentHashMap<String, Long>()
+    // Log empty queryUsageStats result only on state change, not every minute
+    @Volatile
+    private var lastPollWasEmpty = false
 
     @OptIn(DelicateCoroutinesApi::class)
     fun start() {
@@ -51,9 +54,7 @@ class TrackingJob(
                 override fun run() {
                     GlobalScope.launch {
                         try {
-                            TrackingLogStorage.add("Repo", "recordHeartbeat() called")
                             usageStatsRepository.recordHeartbeat()
-                            TrackingLogStorage.add("Repo", "Heartbeat recorded OK")
                         } catch (e: Exception) {
                             TrackingLogStorage.add("Repo", "Heartbeat ERROR: ${e.message}")
                             TrackingLogStorage.add("Repo", e.stackTraceToString())
@@ -122,7 +123,6 @@ class TrackingJob(
         val endTime = System.currentTimeMillis()
         val startTime = endTime - USAGE_STATS_POLL_INTERVAL_MS
 
-        TrackingLogStorage.add("UsageStats", "queryUsageStats(startTime=$startTime, endTime=$endTime)")
 
         // Use queryUsageStats for per-package usage time
         val usageStatsList = usageStatsManager.queryUsageStats(
@@ -132,12 +132,17 @@ class TrackingJob(
         )
 
         if (usageStatsList.isNullOrEmpty()) {
-            TrackingLogStorage.add("UsageStats", "queryUsageStats returned NULL/EMPTY — no apps found")
+            if (!lastPollWasEmpty) {
+                TrackingLogStorage.add("UsageStats", "queryUsageStats returned NULL/EMPTY — no apps found (no permission?)")
+                lastPollWasEmpty = true
+            }
             return
         }
 
-        TrackingLogStorage.add("UsageStats", "queryUsageStats returned ${usageStatsList.size} apps")
-        TrackingLogStorage.add("UsageStats", "Apps: ${usageStatsList.map { it.packageName }.joinToString(", ")}")
+        if (lastPollWasEmpty) {
+            TrackingLogStorage.add("UsageStats", "queryUsageStats recovered: ${usageStatsList.size} apps")
+            lastPollWasEmpty = false
+        }
 
         for (usageStats in usageStatsList) {
             val packageName = usageStats.packageName
@@ -159,7 +164,6 @@ class TrackingJob(
                     // App was in foreground since last poll, but time went backwards
                     // Assume the app was in foreground until the time went backwards
                     deltaMs = 0L
-                    TrackingLogStorage.add("UsageStats", "App $packageName: time went backwards (killed?), resetting")
                 } else {
                     deltaMs = 0L
                 }
@@ -170,7 +174,6 @@ class TrackingJob(
             } else {
                 // First time seeing this app - initialize tracking
                 deltaMs = 0L
-                TrackingLogStorage.add("UsageStats", "App $packageName: first time seeing, initializing tracking")
             }
 
             // Update tracking state
@@ -179,12 +182,10 @@ class TrackingJob(
 
             if (deltaMs > 0) {
                 val appName = getAppName(packageName)
-                TrackingLogStorage.add("UsageStats", "App: $packageName - ${appName} - +${deltaMs}ms (total: $currentForeground)ms")
 
                 // Save session to Room
                 GlobalScope.launch {
                     try {
-                        TrackingLogStorage.add("Repo", "trackUsageSession(packageName=$packageName, durationMs=$deltaMs)")
                         usageStatsRepository.trackUsageSession(
                             packageName = packageName,
                             appName = appName,
@@ -193,14 +194,11 @@ class TrackingJob(
                             durationMs = deltaMs,
                             isEntertainment = false
                         )
-                        TrackingLogStorage.add("Repo", "trackUsageSession OK: $packageName saved")
                     } catch (e: Exception) {
                         TrackingLogStorage.add("Repo", "trackUsageSession ERROR: ${e.message}")
                         TrackingLogStorage.add("Repo", e.stackTraceToString())
                     }
                 }
-            } else {
-                TrackingLogStorage.add("UsageStats", "App: $packageName - deltaMs=0, skipping")
             }
         }
 
