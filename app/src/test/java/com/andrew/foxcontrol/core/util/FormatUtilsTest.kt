@@ -1,4 +1,4 @@
-package com.andrew.foxcontrol.ui.common
+package com.andrew.foxcontrol.core.util
 
 import org.junit.Assert.*
 import org.junit.Test

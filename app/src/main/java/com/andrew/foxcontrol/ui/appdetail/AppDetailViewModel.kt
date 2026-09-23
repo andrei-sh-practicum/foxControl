@@ -9,8 +9,7 @@ import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
-import java.text.SimpleDateFormat
-import java.util.*
+import com.andrew.foxcontrol.core.util.DateUtils
 import javax.inject.Inject
 
 @HiltViewModel
@@ -29,7 +28,7 @@ class AppDetailViewModel @Inject constructor(
                 val category = trackedApp?.category ?: ""
 
                 // Load today's date
-                val today = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(Date())
+                val today = DateUtils.today()
 
                 // Load today's sessions for summary
                 val sessions = repository.getTodaySessionsForPackage(packageName, today)

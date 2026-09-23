@@ -10,6 +10,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import com.andrew.foxcontrol.core.util.DateUtils
 import java.text.SimpleDateFormat
 import java.util.*
 import javax.inject.Inject
@@ -30,7 +31,7 @@ class DebugViewModel @Inject constructor(
                 val debugInfo = repository.getDebugInfo()
                 
                 // Load downtime buckets
-                val today = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(Date())
+                val today = DateUtils.today()
                 val downtimeBuckets = try {
                     repository.getServiceDowntimeBuckets(today)
                 } catch (e: Exception) {

@@ -4,7 +4,7 @@ import android.graphics.Bitmap
 import android.graphics.Canvas
 import android.graphics.drawable.BitmapDrawable
 import android.graphics.drawable.Drawable
-import java.util.concurrent.ConcurrentHashMap
+import android.util.LruCache
 
 /**
  * Converts any [Drawable] (BitmapDrawable, AdaptiveIconDrawable, VectorDrawable, etc.)
@@ -30,19 +30,24 @@ fun Drawable?.toBitmap(): Bitmap? {
 }
 
 /**
- * Simple in-memory cache for icon bitmaps keyed by package name.
- * Thread-safe via ConcurrentHashMap.
+ * In-memory cache for icon bitmaps keyed by package name.
+ * Bounded by memory (1/16 of the app heap, sized in KB); least recently used icons
+ * are evicted and simply reloaded on the next request. LruCache is thread-safe.
  */
 object IconCache {
-    private val cache = ConcurrentHashMap<String, Bitmap>()
+    private val cache = object : LruCache<String, Bitmap>(
+        (Runtime.getRuntime().maxMemory() / 1024 / 16).toInt()
+    ) {
+        override fun sizeOf(key: String, value: Bitmap): Int = (value.byteCount / 1024).coerceAtLeast(1)
+    }
 
-    fun get(packageName: String): Bitmap? = cache[packageName]
+    fun get(packageName: String): Bitmap? = cache.get(packageName)
 
     fun put(packageName: String, bitmap: Bitmap) {
-        cache[packageName] = bitmap
+        cache.put(packageName, bitmap)
     }
 
     fun clear() {
-        cache.clear()
+        cache.evictAll()
     }
 }

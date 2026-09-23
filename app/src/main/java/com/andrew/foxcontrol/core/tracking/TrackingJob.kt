@@ -3,11 +3,11 @@ package com.andrew.foxcontrol.core.tracking
 import android.app.usage.UsageStats
 import android.app.usage.UsageStatsManager
 import android.content.Context
-import android.content.pm.PackageManager
 import android.util.Log
 import com.andrew.foxcontrol.core.alerts.AlertManager
 import com.andrew.foxcontrol.core.email.EmailReportSender
 import com.andrew.foxcontrol.core.maintenance.DataCleanupManager
+import com.andrew.foxcontrol.core.util.AppLabelResolver
 import com.andrew.foxcontrol.core.tracking.TrackingLogStorage.add
 import com.andrew.foxcontrol.data.repository.UsageStatsRepositoryImpl
 import kotlinx.coroutines.DelicateCoroutinesApi
@@ -201,21 +201,8 @@ class TrackingJob(
         }
     }
 
-    private fun getAppName(packageName: String): String {
-        return try {
-            val pm = context.packageManager
-            val appInfo = pm.getApplicationInfo(packageName, PackageManager.GET_META_DATA)
-            val label = pm.getApplicationLabel(appInfo)
-            if (label != null && label.isNotEmpty()) {
-                label.toString()
-            } else {
-                packageName
-            }
-        } catch (e: Exception) {
-            android.util.Log.e("TrackingJob", "Failed to get app name for $packageName: ${e.message}")
-            packageName
-        }
-    }
+    private fun getAppName(packageName: String): String =
+        AppLabelResolver.resolve(context.packageManager, packageName)
 
     companion object {
         const val TAG = "TrackingJob"

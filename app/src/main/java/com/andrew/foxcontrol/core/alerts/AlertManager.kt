@@ -6,8 +6,7 @@ import android.util.Log
 import com.andrew.foxcontrol.data.local.entity.AlertLogEntity
 import com.andrew.foxcontrol.data.repository.UsageStatsRepositoryImpl
 import dagger.hilt.android.qualifiers.ApplicationContext
-import java.text.SimpleDateFormat
-import java.util.*
+import com.andrew.foxcontrol.core.util.DateUtils
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -21,8 +20,7 @@ class AlertManager @Inject constructor(
     }
 
     suspend fun checkAndShowAlerts() {
-        val dateFormat = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
-        val today = dateFormat.format(Date())
+        val today = DateUtils.today()
 
         // Check global limit
         if (usageStatsRepository.checkGlobalLimit()) {
@@ -64,16 +62,7 @@ class AlertManager @Inject constructor(
     }
 
     private suspend fun wasAlertShownToday(packageName: String, type: String): Boolean {
-        val dateFormat = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
-        val calendar = Calendar.getInstance()
-        calendar.time = dateFormat.parse(dateFormat.format(Date())) ?: return false
-        calendar.set(Calendar.HOUR_OF_DAY, 0)
-        calendar.set(Calendar.MINUTE, 0)
-        calendar.set(Calendar.SECOND, 0)
-        calendar.set(Calendar.MILLISECOND, 0)
-        val dayStart = calendar.timeInMillis
-
-        return usageStatsRepository.wasAlertShownToday(packageName, type, dayStart)
+        return usageStatsRepository.wasAlertShownToday(packageName, type, DateUtils.todayStartMs())
     }
 
     private suspend fun showLimitExceededAlert(

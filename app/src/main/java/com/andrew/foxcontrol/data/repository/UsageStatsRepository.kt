@@ -2,11 +2,13 @@ package com.andrew.foxcontrol.data.repository
 
 import android.content.pm.PackageManager
 import com.andrew.foxcontrol.core.tracking.CategoryResolver
+import com.andrew.foxcontrol.core.tracking.ChartWindow
 import com.andrew.foxcontrol.core.tracking.AppUsageHourBucket
 import com.andrew.foxcontrol.core.tracking.AppUsageHourCalculator
 import com.andrew.foxcontrol.core.tracking.DowntimeCalculator
 import com.andrew.foxcontrol.core.tracking.DowntimeHourBucket
 import com.andrew.foxcontrol.core.tracking.TrackingLogStorage
+import com.andrew.foxcontrol.core.util.DateUtils
 import com.andrew.foxcontrol.data.local.dao.*
 import com.andrew.foxcontrol.data.local.entity.*
 import com.andrew.foxcontrol.domain.model.DailyUsageStats
@@ -14,8 +16,6 @@ import com.andrew.foxcontrol.domain.model.UsageStats
 import com.andrew.foxcontrol.domain.model.WeeklyUsageStats
 import com.andrew.foxcontrol.domain.repository.UsageStatsRepository
 import kotlinx.coroutines.runBlocking
-import java.text.SimpleDateFormat
-import java.util.*
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -29,8 +29,6 @@ class UsageStatsRepositoryImpl @Inject constructor(
     private val alertLogDao: AlertLogDao,
     private val packageManager: PackageManager
 ) : UsageStatsRepository {
-
-    private val dateFormat = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
 
     override suspend fun getDailyUsage(date: String): DailyUsageStats {
         val sessions = usageSessionDao.getSessionsByDateSync(date)
@@ -124,7 +122,7 @@ class UsageStatsRepositoryImpl @Inject constructor(
                 return
             }
 
-            val date = dateFormat.format(Date(startTime))
+            val date = DateUtils.format(startTime)
             val session = UsageSessionEntity(
                 packageName = packageName,
                 appName = appName,
@@ -168,7 +166,7 @@ class UsageStatsRepositoryImpl @Inject constructor(
         val limit = globalLimitDao.getGlobalLimit() ?: return false
         if (!limit.enabled) return false
 
-        val today = dateFormat.format(Date())
+        val today = DateUtils.today()
         val dailyUsage = getDailyUsage(today)
         val limitMs = limit.dailyLimitMinutes * 60L * 1000L
 
@@ -179,7 +177,7 @@ class UsageStatsRepositoryImpl @Inject constructor(
         val limit = appLimitDao.getLimit(packageName) ?: return false
         if (!limit.enabled) return false
 
-        val today = dateFormat.format(Date())
+        val today = DateUtils.today()
         val dailyUsage = getDailyUsage(today)
 
         val appUsage = dailyUsage.apps.find { it.packageName == packageName }
@@ -261,20 +259,7 @@ class UsageStatsRepositoryImpl @Inject constructor(
 
     override suspend fun getServiceDowntimeBuckets(date: String): List<DowntimeHourBucket> {
         try {
-            val dateFormat = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
-            val calendar = Calendar.getInstance()
-            calendar.time = dateFormat.parse(date) ?: Calendar.getInstance().time
-            calendar.set(Calendar.HOUR_OF_DAY, 0)
-            calendar.set(Calendar.MINUTE, 0)
-            calendar.set(Calendar.SECOND, 0)
-            calendar.set(Calendar.MILLISECOND, 0)
-            val dayStart = calendar.timeInMillis
-
-            calendar.set(Calendar.HOUR_OF_DAY, 23)
-            calendar.set(Calendar.MINUTE, 59)
-            calendar.set(Calendar.SECOND, 59)
-            calendar.set(Calendar.MILLISECOND, 999)
-            val dayEnd = calendar.timeInMillis + 1
+            val (dayStart, dayEnd) = DateUtils.dayBoundsMs(date)
 
             val heartbeats = serviceHeartbeatDao.getHeartbeatsBetween(dayStart, dayEnd)
             val timestamps = heartbeats.map { it.timestamp }
@@ -284,7 +269,7 @@ class UsageStatsRepositoryImpl @Inject constructor(
             TrackingLogStorage.add("Repo", "getServiceDowntimeBuckets EXCEPTION: ${e.message}")
             TrackingLogStorage.add("Repo", e.stackTraceToString())
             // Return empty buckets on error
-            return (6..21).map { DowntimeHourBucket(it, 0, 0) }
+            return ChartWindow.emptyDowntimeBuckets()
         }
     }
 
@@ -297,7 +282,7 @@ class UsageStatsRepositoryImpl @Inject constructor(
         } catch (e: Exception) {
             TrackingLogStorage.add("Repo", "getHourlyUsageForPackage EXCEPTION: ${e.message}")
             TrackingLogStorage.add("Repo", e.stackTraceToString())
-            return (6..21).map { AppUsageHourBucket(it, 0) }
+            return ChartWindow.emptyUsageBuckets()
         }
     }
 
@@ -310,7 +295,7 @@ class UsageStatsRepositoryImpl @Inject constructor(
         } catch (e: Exception) {
             TrackingLogStorage.add("Repo", "getHourlyUsageForAllApps EXCEPTION: ${e.message}")
             TrackingLogStorage.add("Repo", e.stackTraceToString())
-            return (6..21).map { AppUsageHourBucket(it, 0) }
+            return ChartWindow.emptyUsageBuckets()
         }
     }
 }

@@ -1,6 +1,5 @@
 package com.andrew.foxcontrol.ui.home
 
-import android.content.pm.PackageManager
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -41,9 +40,10 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.andrew.foxcontrol.core.util.AppLabelResolver
 import com.andrew.foxcontrol.ui.common.AppIcon
 import com.andrew.foxcontrol.ui.common.AppUsageHourlyChart
-import com.andrew.foxcontrol.ui.common.formatDuration
+import com.andrew.foxcontrol.core.util.formatDuration
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
@@ -412,15 +412,7 @@ private fun AppUsageCard(
 
     LaunchedEffect(packageName) {
         displayName = withContext(Dispatchers.IO) {
-            try {
-                val pm = context.packageManager
-                val appInfo = pm.getApplicationInfo(packageName, PackageManager.GET_META_DATA)
-                val label = pm.getApplicationLabel(appInfo)
-                if (label != null && label.isNotEmpty()) label.toString() else packageName
-            } catch (e: Exception) {
-                android.util.Log.e("AppUsageCard", "Failed to get app name for $packageName: ${e.message}")
-                packageName
-            }
+            AppLabelResolver.resolve(context.packageManager, packageName)
         }
     }
 

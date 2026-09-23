@@ -5,9 +5,7 @@ import com.andrew.foxcontrol.data.local.dao.AlertLogDao
 import com.andrew.foxcontrol.data.local.dao.ReportSendLogDao
 import com.andrew.foxcontrol.data.local.dao.ServiceHeartbeatDao
 import com.andrew.foxcontrol.data.local.dao.UsageSessionDao
-import java.text.SimpleDateFormat
-import java.util.Date
-import java.util.Locale
+import com.andrew.foxcontrol.core.util.DateUtils
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -36,7 +34,7 @@ class DataCleanupManager @Inject constructor(
      */
     suspend fun purgeOldData() {
         val cutoffMs = System.currentTimeMillis() - RETENTION_MS
-        val keepDate = dateFormat.format(Date(cutoffMs))
+        val keepDate = DateUtils.format(cutoffMs)
 
         TrackingLogStorage.add("Cleanup", "purgeOldData started, cutoff=$keepDate")
 
@@ -84,6 +82,5 @@ class DataCleanupManager @Inject constructor(
     companion object {
         private const val RETENTION_DAYS = 7L
         private const val RETENTION_MS = RETENTION_DAYS * 24 * 60 * 60 * 1000L
-        private val dateFormat = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
     }
 }

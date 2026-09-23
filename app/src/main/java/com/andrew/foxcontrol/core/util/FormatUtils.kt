@@ -1,4 +1,4 @@
-package com.andrew.foxcontrol.ui.common
+package com.andrew.foxcontrol.core.util
 
 fun formatDuration(durationMs: Long): String {
     val hours = durationMs / (1000 * 60 * 60)

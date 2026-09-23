@@ -5,11 +5,11 @@ import com.andrew.foxcontrol.core.tracking.TrackingLogStorage
 import com.andrew.foxcontrol.data.local.entity.ReportSendLogEntity
 import com.andrew.foxcontrol.data.repository.EmailRepository
 import com.andrew.foxcontrol.domain.repository.UsageStatsRepository
-import com.andrew.foxcontrol.ui.common.formatDuration
+import com.andrew.foxcontrol.core.util.formatDuration
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
-import java.text.SimpleDateFormat
+import com.andrew.foxcontrol.core.util.DateUtils
 import java.util.*
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -247,7 +247,5 @@ class EmailReportSender @Inject constructor(
         }
     }
 
-    private fun getCurrentDate(): String {
-        return SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(Date())
-    }
+    private fun getCurrentDate(): String = DateUtils.today()
 }

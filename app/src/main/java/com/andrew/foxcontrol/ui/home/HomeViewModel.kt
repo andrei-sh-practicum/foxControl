@@ -13,8 +13,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
-import java.text.SimpleDateFormat
-import java.util.*
+import com.andrew.foxcontrol.core.util.DateUtils
 import javax.inject.Inject
 
 @HiltViewModel
@@ -43,7 +42,7 @@ class HomeViewModel @Inject constructor(
             _state.update { it.copy(isLoading = true) }
             try {
                 val period = _state.value.period
-                val today = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(Date())
+                val today = DateUtils.today()
 
                 when (period) {
                     HomePeriod.Today -> {
@@ -66,9 +65,7 @@ class HomeViewModel @Inject constructor(
                         }
                     }
                     HomePeriod.Yesterday -> {
-                        val calendar = Calendar.getInstance()
-                        calendar.add(Calendar.DAY_OF_YEAR, -1)
-                        val yesterday = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(calendar.time)
+                        val yesterday = DateUtils.daysAgo(1)
 
                         val yesterdayStats = usageStatsRepository.getDailyUsage(yesterday)
                         val appLimits = usageStatsRepository.getAppLimits()
@@ -89,10 +86,8 @@ class HomeViewModel @Inject constructor(
                         }
                     }
                     HomePeriod.Week -> {
-                        val calendar = Calendar.getInstance()
-                        val endDate = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(calendar.time)
-                        calendar.add(Calendar.DAY_OF_YEAR, -6)
-                        val startDate = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(calendar.time)
+                        val endDate = DateUtils.today()
+                        val startDate = DateUtils.daysAgo(6)
 
                         val weeklyStats = usageStatsRepository.getWeeklyUsage(startDate, endDate)
                         _state.update {

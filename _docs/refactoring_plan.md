@@ -182,11 +182,11 @@
 **Проверка:** сборка, unit-тесты, smoke-тест.
 
 ### Этап 2 — общие утилиты и константы 🟢
-- [ ] 2.1 `core/util/DateUtils` (DUP-6, DUP-7) на `java.time` (minSdk 26 это позволяет). Заменить все 10 мест. **Паттерн и локаль те же.** Это одновременно закрывает T-1 и T-2.
-- [ ] 2.2 `ChartWindow` — константы окна 6..22 и пустые бакеты (DUP-8).
-- [ ] 2.3 Перенести `formatDuration` в `core/util` (A-5).
-- [ ] 2.4 `core/util/AppLabelResolver` (DUP-3, P-5, P-12) с тем же fallback.
-- [ ] 2.5 `IconCache` → `LruCache` (P-11).
+- [x] 2.1 `core/util/DateUtils` (DUP-6, DUP-7). Заменены все места. **Реализовано на `SimpleDateFormat`, новый экземпляр на вызов, а не на `java.time`:** `DateTimeFormatter` не эквивалентен на экзотических локалях (игнорирует буддийский календарь th_TH и нелатинские цифры), а ключ даты хранится в БД. Гонка T-1/T-2 закрыта, т.к. общих экземпляров больше нет. Покрыто `DateUtilsTest`.
+- [x] 2.2 `ChartWindow` — константы окна 6..22 и пустые бакеты (DUP-8).
+- [x] 2.3 Перенести `formatDuration` в `core/util` (A-5).
+- [x] 2.4 `core/util/AppLabelResolver` (DUP-3, P-5) с тем же fallback. Без кэша: `TrackingJob` должен видеть смену метки приложения, как и раньше. `items(key = …)` из P-12 — в этапе 6.
+- [x] 2.5 `IconCache` → `LruCache` (P-11).
 
 ### Этап 3 — Email-подсистема 🟡
 - [ ] 3.1 `core/email/EmailDefaults`: единый источник дефолтов, прямой `BuildConfig` без reflection (DUP-1).

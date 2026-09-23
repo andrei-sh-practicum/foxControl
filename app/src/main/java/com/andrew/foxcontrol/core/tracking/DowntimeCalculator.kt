@@ -1,6 +1,6 @@
 package com.andrew.foxcontrol.core.tracking
 
-import java.util.Calendar
+import com.andrew.foxcontrol.core.util.DateUtils
 
 /**
  * Represents downtime minutes bucketed by hour.
@@ -38,8 +38,6 @@ data class DowntimeHourBucket(
 object DowntimeCalculator {
 
     private const val DOWNTIME_THRESHOLD_MS = 90_000L // 1.5x heartbeat interval
-    private const val WINDOW_START_HOUR = 6
-    private const val WINDOW_END_HOUR = 22
 
     /**
      * Calculate downtime buckets from heartbeat timestamps.
@@ -53,12 +51,12 @@ object DowntimeCalculator {
     fun calculate(
         heartbeatTimestamps: List<Long>,
         now: Long,
-        windowStartHour: Int = WINDOW_START_HOUR,
-        windowEndHour: Int = WINDOW_END_HOUR
+        windowStartHour: Int = ChartWindow.START_HOUR,
+        windowEndHour: Int = ChartWindow.END_HOUR
     ): List<DowntimeHourBucket> {
 
-        val windowStartMs = hourStartMs(windowStartHour)
-        val windowEndMs = hourStartMs(windowEndHour)
+        val windowStartMs = DateUtils.todayHourStartMs(windowStartHour)
+        val windowEndMs = DateUtils.todayHourStartMs(windowEndHour)
 
         // Step 1: sort ascending (should already be sorted, but be safe)
         val sorted = heartbeatTimestamps.toMutableList().sorted()
@@ -97,7 +95,7 @@ object DowntimeCalculator {
         // Step 6: build 16 buckets (hours 6..21)
         val buckets = mutableListOf<DowntimeHourBucket>()
         for (h in windowStartHour until windowEndHour) {
-            val hourStartMs = hourStartMs(h)
+            val hourStartMs = DateUtils.todayHourStartMs(h)
             val hourEndMs = hourStartMs + 3_600_000L // 1 hour in ms
             val elapsedEndMs = minOf(hourEndMs, now)
 
@@ -138,18 +136,5 @@ object DowntimeCalculator {
         }
 
         return buckets
-    }
-
-    /**
-     * Returns the millisecond timestamp at the start of the given hour on the same date.
-     * E.g., hourStartMs(6) with date 2025-09-11 → 2025-09-11T06:00:00.000
-     */
-    private fun hourStartMs(hour: Int): Long {
-        val cal = Calendar.getInstance()
-        cal.set(Calendar.HOUR_OF_DAY, hour)
-        cal.set(Calendar.MINUTE, 0)
-        cal.set(Calendar.SECOND, 0)
-        cal.set(Calendar.MILLISECOND, 0)
-        return cal.timeInMillis
     }
 }
