@@ -197,14 +197,14 @@
 - [x] 3.6 `EmailRecipientsViewModel`: `toEntity()` (DUP-11), убрать D-17.
 
 ### Этап 4 — репозиторий и алерты 🟡
-- [ ] 4.1 Убрать `runBlocking` в `getAppLimits` и объединить с `getAppLimitsSync` (P-3).
-- [ ] 4.2 `trackUsageSession`: резолв категории только для новых приложений (P-4).
-- [ ] 4.3 `withCategories()` (DUP-5, P-2).
-- [ ] 4.4 `LimitCalculator` (DUP-4) и перевод на него `HomeViewModel` и `EmailReportSender`.
-- [ ] 4.5 `AlertManager`: одна загрузка дня на тик (P-1), инжект `NotificationHelper` (A-6), `dayStartMs` из `DateUtils`. **Сохранить:** порядок «сначала global, потом app-лимиты», типы `"global"`/`"app"` в `alert_logs`, условие `>`, формулу `usedMinutes`. Заглушку `getGlobalLimitMinutes()` в рамках рефакторинга не трогать: её удаляет [B-2](bugs_plan.md#b-2-заглушка-getgloballimitminutes--120) сразу после этапа 4.
-- [ ] 4.6 Константы вместо строк `"global"` / `"app"` (`AlertType`).
-- [ ] 4.7 Переименовать файл в `UsageStatsRepositoryImpl.kt`, вынести `DebugInfo`/`DateRange`/`UsageStatsSummary` (A-7, A-8).
-- [ ] 4.8 Расширить интерфейс и перевести потребителей на него (A-1, A-2). Проверить Hilt-граф: `RepositoryModule` биндит интерфейс, а `Impl` остаётся `@Singleton` → экземпляр один.
+- [x] 4.1 Убрать `runBlocking` в `getAppLimits` и объединить с `getAppLimitsSync` (P-3).
+- [x] 4.2 `trackUsageSession`: резолв категории только для новых приложений (P-4).
+- [x] 4.3 `withCategories()` (DUP-5, P-2).
+- [x] 4.4 `LimitCalculator` (DUP-4, `domain/usecase`) и перевод на него `HomeViewModel`, `EmailReportBuilder` и `AlertManager`. ⚠️ Обнаружено: алерты сравнивают **миллисекунды** (30 мин 30 с при лимите 30 — превышение), а Home/email — **целые минуты** (не превышение). Оба правила сохранены, зафиксированы в `LimitCalculatorTest`.
+- [x] 4.5 `AlertManager`: одна загрузка дня на тик (P-1), инжект `NotificationHelper` (A-6), `dayStartMs` из `DateUtils`. **Сохранить:** порядок «сначала global, потом app-лимиты», типы `"global"`/`"app"` в `alert_logs`, условие `>`, формулу `usedMinutes`. Заглушку `getGlobalLimitMinutes()` в рамках рефакторинга не трогать: её удаляет [B-2](bugs_plan.md#b-2-заглушка-getgloballimitminutes--120) сразу после этапа 4.
+- [x] 4.6 Константы вместо строк `"global"` / `"app"` (`AlertType`).
+- [x] 4.7 Переименовать файл в `UsageStatsRepositoryImpl.kt`, вынести `DebugInfo` (→ `domain/model`), `DateRange`/`UsageStatsSummary` (→ `data/local/model/QueryResults.kt`) (A-7, A-8). `checkGlobalLimit`/`checkAppLimit` удалены — логика перенесена в `AlertManager` + `LimitCalculator`.
+- [x] 4.8 Расширить интерфейс и перевести потребителей на него (A-1, A-2). Проверить Hilt-граф: `RepositoryModule` биндит интерфейс, а `Impl` остаётся `@Singleton` → экземпляр один.
 
 ### Этап 5 — трекинг и сервис 🟡/🔴
 - [ ] 5.1 `TrackingJob.isRunning` → `AtomicBoolean` (T-3).

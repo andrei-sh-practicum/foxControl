@@ -11,11 +11,11 @@ import com.andrew.foxcontrol.core.tracking.TrackingLogStorage
 import com.andrew.foxcontrol.core.util.DateUtils
 import com.andrew.foxcontrol.data.local.dao.*
 import com.andrew.foxcontrol.data.local.entity.*
+import com.andrew.foxcontrol.domain.model.DebugInfo
 import com.andrew.foxcontrol.domain.model.DailyUsageStats
 import com.andrew.foxcontrol.domain.model.UsageStats
 import com.andrew.foxcontrol.domain.model.WeeklyUsageStats
 import com.andrew.foxcontrol.domain.repository.UsageStatsRepository
-import kotlinx.coroutines.runBlocking
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -30,6 +30,11 @@ class UsageStatsRepositoryImpl @Inject constructor(
     private val packageManager: PackageManager
 ) : UsageStatsRepository {
 
+    companion object {
+        /** Apps used less than this per day are left out of the daily stats (since bf44269). */
+        const val MIN_APP_USAGE_MS = 60_000L
+    }
+
     override suspend fun getDailyUsage(date: String): DailyUsageStats {
         val sessions = usageSessionDao.getSessionsByDateSync(date)
         val apps = sessions.groupBy { it.packageName to it.appName }.map { (key, list) ->
@@ -43,16 +48,10 @@ class UsageStatsRepositoryImpl @Inject constructor(
             )
         }.sortedByDescending { it.totalDurationMs }
 
-        // Filter out apps used less than 1 minute (60_000 ms)
-        val appsFiltered = apps.filter { it.totalDurationMs >= 60_000 }
+        // Filter out apps used less than 1 minute
+        val appsFiltered = apps.filter { it.totalDurationMs >= MIN_APP_USAGE_MS }
 
-        // Fill category from tracked_apps
-        val trackedApps = trackedAppDao.getAllTrackedAppsSync()
-        val categoryMap = trackedApps.associate { it.packageName to it.category }
-        val appsWithCategory = appsFiltered.map { app ->
-            val cat = categoryMap[app.packageName] ?: ""
-            if (cat.isNotEmpty()) app.copy(category = cat) else app
-        }
+        val appsWithCategory = withCategories(appsFiltered)
 
         return DailyUsageStats(
             date = date,
@@ -63,7 +62,7 @@ class UsageStatsRepositoryImpl @Inject constructor(
 
     override suspend fun getWeeklyUsage(startDate: String, endDate: String): WeeklyUsageStats {
         val summary = usageSessionDao.getWeeklyUsageByPackage(startDate, endDate)
-        var apps = summary.map { s ->
+        val apps = summary.map { s ->
             UsageStats(
                 packageName = s.packageName,
                 appName = s.appName,
@@ -73,14 +72,7 @@ class UsageStatsRepositoryImpl @Inject constructor(
                 category = "" // Will be filled from tracked_apps below
             )
         }.sortedByDescending { it.totalDurationMs }
-
-        // Fill category from tracked_apps
-        val trackedApps = trackedAppDao.getAllTrackedAppsSync()
-        val categoryMap = trackedApps.associate { it.packageName to it.category }
-        apps = apps.map { app ->
-            val cat = categoryMap[app.packageName] ?: ""
-            if (cat.isNotEmpty()) app.copy(category = cat) else app
-        }
+            .let { withCategories(it) }
 
         return WeeklyUsageStats(
             startDate = startDate,
@@ -90,7 +82,16 @@ class UsageStatsRepositoryImpl @Inject constructor(
         )
     }
 
-    override suspend fun getTodaySessionsForPackage(packageName: String, date: String): List<com.andrew.foxcontrol.data.local.entity.UsageSessionEntity> {
+    /** Fills [UsageStats.category] from tracked_apps (apps without a category keep ""). */
+    private suspend fun withCategories(apps: List<UsageStats>): List<UsageStats> {
+        val categoryMap = trackedAppDao.getAllTrackedAppsSync().associate { it.packageName to it.category }
+        return apps.map { app ->
+            val cat = categoryMap[app.packageName] ?: ""
+            if (cat.isNotEmpty()) app.copy(category = cat) else app
+        }
+    }
+
+    override suspend fun getTodaySessionsForPackage(packageName: String, date: String): List<UsageSessionEntity> {
         return usageSessionDao.getSessionsByPackageAndDate(packageName, date)
     }
 
@@ -107,7 +108,7 @@ class UsageStatsRepositoryImpl @Inject constructor(
 
     // --- Tracking methods ---
 
-    suspend fun trackUsageSession(
+    override suspend fun trackUsageSession(
         packageName: String,
         appName: String,
         startTime: Long,
@@ -134,15 +135,14 @@ class UsageStatsRepositoryImpl @Inject constructor(
             )
             usageSessionDao.insertSession(session)
 
-            // Upsert tracked app with category resolution
-            val category = CategoryResolver.resolve(packageManager, packageName)
+            // Upsert tracked app; the category is resolved (PackageManager call) only once
             if (existingApp == null) {
                 // First time seeing this app — insert with category
                 val trackedApp = TrackedAppEntity(
                     packageName = packageName,
                     appName = appName,
                     iconUri = null,
-                    category = category,
+                    category = CategoryResolver.resolve(packageManager, packageName),
                     isEntertainment = isEntertainment,
                     isExcluded = false,
                     lastUsedTime = endTime,
@@ -160,36 +160,9 @@ class UsageStatsRepositoryImpl @Inject constructor(
         }
     }
 
-    // --- Limit checking ---
-
-    suspend fun checkGlobalLimit(): Boolean {
-        val limit = globalLimitDao.getGlobalLimit() ?: return false
-        if (!limit.enabled) return false
-
-        val today = DateUtils.today()
-        val dailyUsage = getDailyUsage(today)
-        val limitMs = limit.dailyLimitMinutes * 60L * 1000L
-
-        return dailyUsage.totalUsageMs > limitMs
-    }
-
-    suspend fun checkAppLimit(packageName: String): Boolean {
-        val limit = appLimitDao.getLimit(packageName) ?: return false
-        if (!limit.enabled) return false
-
-        val today = DateUtils.today()
-        val dailyUsage = getDailyUsage(today)
-
-        val appUsage = dailyUsage.apps.find { it.packageName == packageName }
-            ?: return false
-
-        val limitMs = limit.dailyLimitMinutes * 60L * 1000L
-        return appUsage.totalDurationMs > limitMs
-    }
-
     // --- Heartbeat ---
 
-    suspend fun recordHeartbeat() {
+    override suspend fun recordHeartbeat() {
         try {
             serviceHeartbeatDao.insertHeartbeat(
                 ServiceHeartbeatEntity(timestamp = System.currentTimeMillis())
@@ -201,23 +174,20 @@ class UsageStatsRepositoryImpl @Inject constructor(
 
     // --- Limits ---
 
+    override suspend fun getGlobalLimit(): GlobalLimitEntity? = globalLimitDao.getGlobalLimit()
+
     suspend fun setGlobalLimit(dailyLimitMinutes: Int, enabled: Boolean) {
         globalLimitDao.setGlobalLimit(dailyLimitMinutes, enabled)
     }
 
     // --- App limits ---
 
-    suspend fun getAppLimitsSync(): List<AppLimitEntity> {
-        return runBlocking { appLimitDao.getEnabledLimitsSync() }
-    }
-
     override suspend fun getTrackedApps(): List<TrackedAppEntity> {
         return trackedAppDao.getAllTrackedAppsSync()
     }
 
-    override suspend fun getAppLimits(): List<AppLimitEntity> {
-        return runBlocking { appLimitDao.getEnabledLimitsSync() }
-    }
+    /** Enabled app limits only. */
+    override suspend fun getAppLimits(): List<AppLimitEntity> = appLimitDao.getEnabledLimitsSync()
 
     override suspend fun setAppLimit(packageName: String, dailyLimitMinutes: Int, enabled: Boolean) {
         appLimitDao.insertLimit(AppLimitEntity(packageName, dailyLimitMinutes, enabled))
@@ -229,17 +199,17 @@ class UsageStatsRepositoryImpl @Inject constructor(
 
     // --- Alert logs ---
 
-    suspend fun wasAlertShownToday(packageName: String, type: String, dayStart: Long): Boolean {
+    override suspend fun wasAlertShownToday(packageName: String, type: String, dayStart: Long): Boolean {
         return alertLogDao.wasAlertShownToday(packageName, type, dayStart)
     }
 
-    suspend fun recordAlertLog(log: AlertLogEntity) {
+    override suspend fun recordAlertLog(log: AlertLogEntity) {
         alertLogDao.insertAlertLog(log)
     }
 
     // --- Debug ---
 
-    suspend fun getDebugInfo(): DebugInfo {
+    override suspend fun getDebugInfo(): DebugInfo {
         val sessionCount = usageSessionDao.getSessionCount()
         val uniquePackages = usageSessionDao.getUniquePackageCount()
         val dateRange = usageSessionDao.getDateRange()
@@ -307,12 +277,3 @@ class UsageStatsRepositoryImpl @Inject constructor(
         }
     }
 }
-
-data class DebugInfo(
-    val sessionCount: Int,
-    val uniquePackageCount: Int,
-    val dateRange: DateRange?,
-    val recentSessions: List<UsageSessionEntity>,
-    val heartbeatCount: Int,
-    val lastHeartbeatTimestamp: Long?
-)

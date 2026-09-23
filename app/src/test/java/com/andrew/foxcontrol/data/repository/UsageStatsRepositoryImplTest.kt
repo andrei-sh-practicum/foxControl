@@ -11,11 +11,10 @@ import com.andrew.foxcontrol.data.local.entity.AppLimitEntity
 import com.andrew.foxcontrol.data.local.entity.TrackedAppEntity
 import com.andrew.foxcontrol.data.local.entity.UsageSessionEntity
 import io.mockk.coEvery
+import io.mockk.coVerify
 import io.mockk.mockk
 import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertEquals
-import org.junit.Assert.assertFalse
-import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
 
@@ -127,24 +126,32 @@ class UsageStatsRepositoryImplTest {
     }
 
     @Test
-    fun checkAppLimit_exceededOnlyWhenStrictlyGreater() = runBlocking {
-        coEvery { appLimitDao.getLimit("app") } returns AppLimitEntity("app", dailyLimitMinutes = 2)
+    fun getAppLimits_returnsEnabledLimitsWithoutBlocking() = runBlocking {
+        val limits = listOf(AppLimitEntity("app", dailyLimitMinutes = 2))
+        coEvery { appLimitDao.getEnabledLimitsSync() } returns limits
 
-        coEvery { usageSessionDao.getSessionsByDateSync(any()) } returns listOf(session("app", 120_000L))
-        assertFalse(repository.checkAppLimit("app"))
-
-        coEvery { usageSessionDao.getSessionsByDateSync(any()) } returns listOf(session("app", 120_001L))
-        assertTrue(repository.checkAppLimit("app"))
+        assertEquals(limits, repository.getAppLimits())
     }
 
     @Test
-    fun checkAppLimit_disabledOrMissingLimitIsNeverExceeded() = runBlocking {
-        coEvery { usageSessionDao.getSessionsByDateSync(any()) } returns listOf(session("app", 600_000L))
+    fun trackUsageSession_existingAppDoesNotQueryPackageManager() = runBlocking {
+        // packageManager is a strict mock: any call to it would fail the test
+        coEvery { trackedAppDao.getTrackedApp("app") } returns TrackedAppEntity(packageName = "app", appName = "App")
+        coEvery { usageSessionDao.insertSession(any()) } returns Unit
+        coEvery { trackedAppDao.updateUsage("app", 60_000L, 1_060_000L) } returns Unit
 
-        coEvery { appLimitDao.getLimit("app") } returns AppLimitEntity("app", dailyLimitMinutes = 1, enabled = false)
-        assertFalse(repository.checkAppLimit("app"))
+        repository.trackUsageSession("app", "App", 1_000_000L, 1_060_000L, 60_000L, isEntertainment = false)
 
-        coEvery { appLimitDao.getLimit("app") } returns null
-        assertFalse(repository.checkAppLimit("app"))
+        coVerify { trackedAppDao.updateUsage("app", 60_000L, 1_060_000L) }
+    }
+
+    @Test
+    fun trackUsageSession_excludedAppIsIgnored() = runBlocking {
+        coEvery { trackedAppDao.getTrackedApp("app") } returns
+            TrackedAppEntity(packageName = "app", appName = "App", isExcluded = true)
+
+        repository.trackUsageSession("app", "App", 1_000_000L, 1_060_000L, 60_000L, isEntertainment = false)
+
+        coVerify(exactly = 0) { usageSessionDao.insertSession(any()) }
     }
 }

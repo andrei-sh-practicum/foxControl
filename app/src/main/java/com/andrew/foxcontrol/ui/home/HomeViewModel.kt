@@ -8,6 +8,7 @@ import com.andrew.foxcontrol.data.local.entity.AppLimitEntity
 import com.andrew.foxcontrol.domain.model.DailyUsageStats
 import com.andrew.foxcontrol.domain.model.WeeklyUsageStats
 import com.andrew.foxcontrol.domain.repository.UsageStatsRepository
+import com.andrew.foxcontrol.domain.usecase.LimitCalculator
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -118,29 +119,16 @@ class HomeViewModel @Inject constructor(
     private fun computeExceededApps(
         dailyStats: DailyUsageStats,
         appLimits: List<AppLimitEntity>
-    ): List<ExceededAppInfo> {
-        val exceeded = mutableListOf<ExceededAppInfo>()
-        val limitMap = appLimits.associate { it.packageName to it.dailyLimitMinutes }
-
-        for (app in dailyStats.apps) {
-            val limitMinutes = limitMap[app.packageName] ?: continue
-            val totalMinutes = app.totalDurationMs / (1000 * 60)
-
-            if (totalMinutes > limitMinutes) {
-                exceeded.add(
-                    ExceededAppInfo(
-                        packageName = app.packageName,
-                        appName = app.appName,
-                        totalMinutes = totalMinutes.toInt(),
-                        limitMinutes = limitMinutes,
-                        overMinutes = totalMinutes.toInt() - limitMinutes
-                    )
-                )
-            }
+    ): List<ExceededAppInfo> =
+        LimitCalculator.exceededApps(dailyStats.apps, appLimits).map {
+            ExceededAppInfo(
+                packageName = it.packageName,
+                appName = it.appName,
+                totalMinutes = it.totalMinutes,
+                limitMinutes = it.limitMinutes,
+                overMinutes = it.overMinutes
+            )
         }
-
-        return exceeded.sortedByDescending { it.overMinutes }
-    }
 }
 
 @Immutable

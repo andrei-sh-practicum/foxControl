@@ -9,7 +9,7 @@ import com.andrew.foxcontrol.core.email.EmailReportSender
 import com.andrew.foxcontrol.core.maintenance.DataCleanupManager
 import com.andrew.foxcontrol.core.util.AppLabelResolver
 import com.andrew.foxcontrol.core.tracking.TrackingLogStorage.add
-import com.andrew.foxcontrol.data.repository.UsageStatsRepositoryImpl
+import com.andrew.foxcontrol.domain.repository.UsageStatsRepository
 import kotlinx.coroutines.DelicateCoroutinesApi
 import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.launch
@@ -20,7 +20,7 @@ import java.util.concurrent.atomic.AtomicBoolean
 
 class TrackingJob(
     private val context: Context,
-    private val usageStatsRepository: UsageStatsRepositoryImpl,
+    private val usageStatsRepository: UsageStatsRepository,
     private val alertManager: AlertManager,
     private val emailReportSender: EmailReportSender,
     private val dataCleanupManager: DataCleanupManager

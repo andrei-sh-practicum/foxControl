@@ -12,6 +12,7 @@ import com.andrew.foxcontrol.core.alerts.AlertManager
 import com.andrew.foxcontrol.core.email.EmailReportSender
 import com.andrew.foxcontrol.core.maintenance.DataCleanupManager
 import com.andrew.foxcontrol.core.permissions.PermissionMonitor
+import com.andrew.foxcontrol.domain.repository.UsageStatsRepository
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.*
 import javax.inject.Inject
@@ -27,7 +28,7 @@ class TrackingForegroundService : Service() {
     }
 
     @Inject
-    lateinit var usageStatsRepository: com.andrew.foxcontrol.data.repository.UsageStatsRepositoryImpl
+    lateinit var usageStatsRepository: UsageStatsRepository
 
     @Inject
     lateinit var alertManager: AlertManager

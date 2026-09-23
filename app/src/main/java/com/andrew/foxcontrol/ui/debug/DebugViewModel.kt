@@ -4,7 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.andrew.foxcontrol.core.tracking.DowntimeHourBucket
 import com.andrew.foxcontrol.core.tracking.TrackingLogStorage
-import com.andrew.foxcontrol.data.repository.UsageStatsRepositoryImpl
+import com.andrew.foxcontrol.domain.repository.UsageStatsRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -17,7 +17,7 @@ import javax.inject.Inject
 
 @HiltViewModel
 class DebugViewModel @Inject constructor(
-    private val repository: UsageStatsRepositoryImpl,
+    private val repository: UsageStatsRepository,
     private val dataCleanupManager: com.andrew.foxcontrol.core.maintenance.DataCleanupManager
 ) : ViewModel() {
 

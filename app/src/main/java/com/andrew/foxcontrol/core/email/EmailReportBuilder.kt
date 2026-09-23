@@ -3,6 +3,7 @@ package com.andrew.foxcontrol.core.email
 import com.andrew.foxcontrol.core.util.formatDuration
 import com.andrew.foxcontrol.data.local.entity.AppLimitEntity
 import com.andrew.foxcontrol.domain.model.DailyUsageStats
+import com.andrew.foxcontrol.domain.usecase.LimitCalculator
 
 /**
  * Builds the plain-text daily usage report. Pure function — no I/O.
@@ -11,36 +12,13 @@ object EmailReportBuilder {
 
     data class Report(val subject: String, val body: String)
 
-    private data class ExceededApp(
-        val appName: String,
-        val totalMinutes: Int,
-        val limitMinutes: Int,
-        val overMinutes: Int
-    )
-
     fun build(
         date: String,
         userName: String,
         stats: DailyUsageStats,
         appLimits: List<AppLimitEntity>
     ): Report {
-        val exceededApps = mutableListOf<ExceededApp>()
-        val limitMap = appLimits.associate { it.packageName to it.dailyLimitMinutes }
-        for (app in stats.apps) {
-            val limitMinutes = limitMap[app.packageName] ?: continue
-            val totalMinutes = (app.totalDurationMs / (1000 * 60)).toInt()
-            if (totalMinutes > limitMinutes) {
-                exceededApps.add(
-                    ExceededApp(
-                        appName = app.appName,
-                        totalMinutes = totalMinutes,
-                        limitMinutes = limitMinutes,
-                        overMinutes = totalMinutes - limitMinutes
-                    )
-                )
-            }
-        }
-        exceededApps.sortByDescending { it.overMinutes }
+        val exceededApps = LimitCalculator.exceededApps(stats.apps, appLimits)
 
         val subject = "Fox Control: Отчёт за $date"
         val body = buildString {

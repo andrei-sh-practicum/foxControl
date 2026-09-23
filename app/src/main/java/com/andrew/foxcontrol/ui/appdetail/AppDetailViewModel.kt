@@ -4,7 +4,7 @@ import androidx.compose.runtime.Immutable
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.andrew.foxcontrol.core.tracking.AppUsageHourBucket
-import com.andrew.foxcontrol.data.repository.UsageStatsRepositoryImpl
+import com.andrew.foxcontrol.domain.repository.UsageStatsRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -14,7 +14,7 @@ import javax.inject.Inject
 
 @HiltViewModel
 class AppDetailViewModel @Inject constructor(
-    private val repository: UsageStatsRepositoryImpl
+    private val repository: UsageStatsRepository
 ) : ViewModel() {
 
     private val _state = MutableStateFlow(AppDetailState())
