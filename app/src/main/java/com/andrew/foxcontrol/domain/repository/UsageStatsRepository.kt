@@ -43,6 +43,7 @@ interface UsageStatsRepository {
     /** Enabled app limits only. */
     suspend fun getAppLimits(): List<AppLimitEntity>
     suspend fun setAppLimit(packageName: String, dailyLimitMinutes: Int, enabled: Boolean)
+    suspend fun removeAppLimit(packageName: String)
 
     // --- Alerts ---
     suspend fun wasAlertShownToday(packageName: String, type: String, dayStart: Long): Boolean

@@ -170,6 +170,8 @@ private fun PrivateSettingsContent(
     var showAppLimitDialog by remember { mutableStateOf(false) }
     var showClearTrackedAppsDialog by remember { mutableStateOf(false) }
     var showExcludeAppDialog by remember { mutableStateOf(false) }
+    // Package name of the app limit being edited
+    var editingLimitPackage by remember { mutableStateOf<String?>(null) }
 
     // Close the change-password dialog only after the new password was saved,
     // then keep the confirmation visible for a moment
@@ -202,6 +204,28 @@ private fun PrivateSettingsContent(
                 .padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(24.dp)
         ) {
+            // Errors of the last action (saving limits, excluding apps)
+            val actionError = state.error ?: state.addAppLimitError
+            if (actionError != null) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Text(
+                        text = actionError,
+                        color = MaterialTheme.colorScheme.error,
+                        style = MaterialTheme.typography.bodyMedium,
+                        modifier = Modifier.weight(1f)
+                    )
+                    IconButton(onClick = {
+                        onEvent(PrivateSettingsEvent.OnClearError)
+                        onEvent(PrivateSettingsEvent.OnClearAddAppLimitError)
+                    }) {
+                        Icon(Icons.Default.Close, contentDescription = "Скрыть ошибку")
+                    }
+                }
+            }
+
             // Global daily limit
             Column(
                 verticalArrangement = Arrangement.spacedBy(8.dp)
@@ -254,6 +278,11 @@ private fun PrivateSettingsContent(
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 } else {
+                    Text(
+                        text = "Нажмите на приложение, чтобы изменить или удалить лимит",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
                     // Build packageName -> appName lookup
                     val appMap = state.trackedApps.associate { it.packageName to it.appName }
                     state.appLimits.forEach { (packageName, limit) ->
@@ -264,6 +293,7 @@ private fun PrivateSettingsContent(
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .padding(horizontal = 16.dp)
+                                .clickable { editingLimitPackage = packageName }
                         ) {
                             Text(
                                 text = appName,
@@ -582,6 +612,24 @@ private fun PrivateSettingsContent(
             )
         }
 
+        // Edit / remove app limit dialog
+        editingLimitPackage?.let { packageName ->
+            val appName = state.trackedApps.firstOrNull { it.packageName == packageName }?.appName ?: packageName
+            EditAppLimitDialog(
+                appName = appName,
+                currentMinutes = state.appLimits[packageName] ?: 0,
+                onSave = { minutes ->
+                    onEvent(PrivateSettingsEvent.OnAppLimitChanged(packageName, minutes))
+                    editingLimitPackage = null
+                },
+                onRemove = {
+                    onEvent(PrivateSettingsEvent.OnRemoveAppLimit(packageName))
+                    editingLimitPackage = null
+                },
+                onDismiss = { editingLimitPackage = null }
+            )
+        }
+
         // Exclude app dialog
         if (showExcludeAppDialog) {
             var selectedAppName by remember { mutableStateOf("") }
@@ -694,6 +742,58 @@ private fun PrivateSettingsContent(
             )
         }
     }
+}
+
+@Composable
+private fun EditAppLimitDialog(
+    appName: String,
+    currentMinutes: Int,
+    onSave: (Int) -> Unit,
+    onRemove: () -> Unit,
+    onDismiss: () -> Unit
+) {
+    var minutesText by remember { mutableStateOf(currentMinutes.toString()) }
+    // Same rule as the "add limit" dialog: a whole number of minutes
+    val minutes = minutesText.takeIf { it.isNotEmpty() && it.all { c -> c.isDigit() } }?.toIntOrNull()
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Лимит: $appName") },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                OutlinedTextField(
+                    value = minutesText,
+                    onValueChange = { minutesText = it },
+                    label = { Text("Лимит (минуты)") },
+                    singleLine = true,
+                    isError = minutes == null,
+                    supportingText = if (minutes == null) { { Text("Введите целое число") } } else null,
+                    modifier = Modifier.fillMaxWidth()
+                )
+                TextButton(
+                    onClick = onRemove,
+                    colors = androidx.compose.material3.ButtonDefaults.textButtonColors(
+                        contentColor = MaterialTheme.colorScheme.error
+                    )
+                ) {
+                    Text("Удалить лимит")
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(
+                enabled = minutes != null,
+                onClick = { minutes?.let(onSave) }
+            ) {
+                Text("Сохранить")
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text("Отмена")
+            }
+        }
+    )
 }
 
 private const val MIN_PASSWORD_LENGTH = 4

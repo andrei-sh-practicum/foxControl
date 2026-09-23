@@ -193,6 +193,10 @@ class UsageStatsRepositoryImpl @Inject constructor(
         appLimitDao.insertLimit(AppLimitEntity(packageName, dailyLimitMinutes, enabled))
     }
 
+    override suspend fun removeAppLimit(packageName: String) {
+        appLimitDao.deleteLimit(packageName)
+    }
+
     override suspend fun setAppExcluded(packageName: String, excluded: Boolean) {
         trackedAppDao.setExcluded(packageName, excluded)
     }

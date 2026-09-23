@@ -172,4 +172,13 @@ class UsageStatsRepositoryImplTest {
         repository.setGlobalLimit(0)
         coVerify { globalLimitDao.insertGlobalLimit(GlobalLimitEntity(id = 1, dailyLimitMinutes = 0, enabled = false)) }
     }
+
+    @Test
+    fun removeAppLimit_deletesTheRow() = runBlocking {
+        coEvery { appLimitDao.deleteLimit("app") } returns Unit
+
+        repository.removeAppLimit("app")
+
+        coVerify { appLimitDao.deleteLimit("app") }
+    }
 }

@@ -104,7 +104,7 @@ class PrivateSettingsViewModel @Inject constructor(
             }
             is PrivateSettingsEvent.OnPasswordEntered -> {
                 if (verifyPassword(event.password)) {
-                    _state.update { it.copy(isAuthenticated = true) }
+                    _state.update { it.copy(isAuthenticated = true, error = null) }
                 } else {
                     _state.update { it.copy(error = "Неверный пароль") }
                 }
@@ -126,10 +126,23 @@ class PrivateSettingsViewModel @Inject constructor(
                 }
             }
             is PrivateSettingsEvent.OnAppLimitChanged -> {
-                _state.update {
-                    val limits = it.appLimits.toMutableMap()
-                    limits[event.packageName] = event.limitMinutes
-                    it.copy(appLimits = limits)
+                viewModelScope.launch {
+                    try {
+                        usageStatsRepository.setAppLimit(event.packageName, event.limitMinutes, enabled = true)
+                        _state.update { it.copy(appLimits = it.appLimits + (event.packageName to event.limitMinutes)) }
+                    } catch (e: Exception) {
+                        _state.update { it.copy(error = "Ошибка при изменении лимита: ${e.message}") }
+                    }
+                }
+            }
+            is PrivateSettingsEvent.OnRemoveAppLimit -> {
+                viewModelScope.launch {
+                    try {
+                        usageStatsRepository.removeAppLimit(event.packageName)
+                        _state.update { it.copy(appLimits = it.appLimits - event.packageName) }
+                    } catch (e: Exception) {
+                        _state.update { it.copy(error = "Ошибка при удалении лимита: ${e.message}") }
+                    }
                 }
             }
             PrivateSettingsEvent.OnClearError -> {
@@ -215,7 +228,9 @@ sealed class PrivateSettingsEvent {
     object OnPasswordChangeResultConsumed : PrivateSettingsEvent()
     /** Saved on dialog confirm; 0 disables the limit. */
     data class OnGlobalLimitChanged(val minutes: Int) : PrivateSettingsEvent()
+    /** Edit of an existing app limit (saved to the DB). */
     data class OnAppLimitChanged(val packageName: String, val limitMinutes: Int) : PrivateSettingsEvent()
+    data class OnRemoveAppLimit(val packageName: String) : PrivateSettingsEvent()
     data class OnAddAppLimit(val packageName: String, val appName: String, val limitMinutes: Int) : PrivateSettingsEvent()
     object OnClearError : PrivateSettingsEvent()
     object OnClearAddAppLimitError : PrivateSettingsEvent()
