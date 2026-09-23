@@ -2,6 +2,7 @@ package com.andrew.foxcontrol.ui.home
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -10,6 +11,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CenterAlignedTopAppBar
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -96,11 +98,11 @@ private fun HomeContent(
                     .fillMaxWidth()
                     .padding(16.dp)
             ) {
-                HomePeriod.values().forEachIndexed { index, period ->
+                HomePeriod.entries.forEachIndexed { index, period ->
                     SegmentedButton(
                         selected = state.period == period,
                         onClick = { onEvent(HomeEvent.ChangePeriod(period)) },
-                        shape = SegmentedButtonDefaults.itemShape(index = index, count = HomePeriod.values().size)
+                        shape = SegmentedButtonDefaults.itemShape(index = index, count = HomePeriod.entries.size)
                     ) {
                         Text(
                             text = period.label,
@@ -132,79 +134,20 @@ private fun HomeContent(
             }
 
             // Total usage summary
-            when (state.period) {
-                HomePeriod.Today -> {
-                    state.dailyStats?.let { dailyStats ->
-                        Column(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(horizontal = 16.dp)
-                        ) {
-                            Text(
-                                text = "Итого за день",
-                                style = MaterialTheme.typography.titleMedium,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                            Text(
-                                text = formatDuration(dailyStats.totalUsageMs),
-                                style = MaterialTheme.typography.headlineMedium
-                            )
-                            Text(
-                                text = "${dailyStats.apps.size} приложений",
-                                style = MaterialTheme.typography.bodyMedium,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                        }
-                    }
-                }
-                HomePeriod.Yesterday -> {
-                    state.yesterdayStats?.let { yesterdayStats ->
-                        Column(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(horizontal = 16.dp)
-                        ) {
-                            Text(
-                                text = "Итого за вчера",
-                                style = MaterialTheme.typography.titleMedium,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                            Text(
-                                text = formatDuration(yesterdayStats.totalUsageMs),
-                                style = MaterialTheme.typography.headlineMedium
-                            )
-                            Text(
-                                text = "${yesterdayStats.apps.size} приложений",
-                                style = MaterialTheme.typography.bodyMedium,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                        }
-                    }
-                }
-                HomePeriod.Week -> {
-                    state.weeklyStats?.let { weeklyStats ->
-                        Column(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(horizontal = 16.dp)
-                        ) {
-                            Text(
-                                text = "Итого за неделю",
-                                style = MaterialTheme.typography.titleMedium,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                            Text(
-                                text = formatDuration(weeklyStats.totalUsageMs),
-                                style = MaterialTheme.typography.headlineMedium
-                            )
-                            Text(
-                                text = "${weeklyStats.apps.size} приложений",
-                                style = MaterialTheme.typography.bodyMedium,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                        }
-                    }
-                }
+            val summary = when (state.period) {
+                HomePeriod.Today -> state.dailyStats?.let { Triple("Итого за день", it.totalUsageMs, it.apps.size) }
+                HomePeriod.Yesterday -> state.yesterdayStats?.let { Triple("Итого за вчера", it.totalUsageMs, it.apps.size) }
+                HomePeriod.Week -> state.weeklyStats?.let { Triple("Итого за неделю", it.totalUsageMs, it.apps.size) }
+            }
+            summary?.let { (title, totalMs, appCount) ->
+                UsageSummary(title = title, totalUsageMs = totalMs, appCount = appCount)
+            }
+
+            // App list of the selected period (null = not loaded)
+            val apps = when (state.period) {
+                HomePeriod.Today -> state.dailyStats?.apps
+                HomePeriod.Yesterday -> state.yesterdayStats?.apps
+                HomePeriod.Week -> state.weeklyStats?.apps
             }
 
             // Loading state
@@ -259,105 +202,17 @@ private fun HomeContent(
                         Text("Повторить")
                     }
                 }
-            } else if (state.period == HomePeriod.Today && (state.dailyStats == null || state.dailyStats.apps.isEmpty())) {
-                // Empty state for Today
-                Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .weight(1f)
-                        .padding(16.dp),
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                    verticalArrangement = Arrangement.Center
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.BarChart,
-                        contentDescription = null,
-                        modifier = Modifier.size(64.dp),
-                        tint = MaterialTheme.colorScheme.primary
-                    )
-                    Text(
-                        text = "Нет данных",
-                        style = MaterialTheme.typography.titleLarge,
-                        modifier = Modifier.padding(top = 16.dp)
-                    )
-                    Text(
-                        text = "Статистика появится после начала использования приложений",
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.padding(top = 8.dp)
-                    )
-                }
-            } else if (state.period == HomePeriod.Yesterday && (state.yesterdayStats == null || state.yesterdayStats.apps.isEmpty())) {
-                // Empty state for Yesterday
-                Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .weight(1f)
-                        .padding(16.dp),
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                    verticalArrangement = Arrangement.Center
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.BarChart,
-                        contentDescription = null,
-                        modifier = Modifier.size(64.dp),
-                        tint = MaterialTheme.colorScheme.primary
-                    )
-                    Text(
-                        text = "Нет данных",
-                        style = MaterialTheme.typography.titleLarge,
-                        modifier = Modifier.padding(top = 16.dp)
-                    )
-                    Text(
-                        text = "Статистика появится после начала использования приложений",
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.padding(top = 8.dp)
-                    )
-                }
-            } else if (state.period == HomePeriod.Week && (state.weeklyStats == null || state.weeklyStats.apps.isEmpty())) {
-                // Empty state for Week
-                Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .weight(1f)
-                        .padding(16.dp),
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                    verticalArrangement = Arrangement.Center
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.BarChart,
-                        contentDescription = null,
-                        modifier = Modifier.size(64.dp),
-                        tint = MaterialTheme.colorScheme.primary
-                    )
-                    Text(
-                        text = "Нет данных",
-                        style = MaterialTheme.typography.titleLarge,
-                        modifier = Modifier.padding(top = 16.dp)
-                    )
-                    Text(
-                        text = "Статистика появится после начала использования приложений",
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.padding(top = 8.dp)
-                    )
-                }
+            } else if (apps.isNullOrEmpty()) {
+                EmptyState(modifier = Modifier.weight(1f))
             } else {
-                // App list
-                val apps = when (state.period) {
-                    HomePeriod.Today -> state.dailyStats?.apps ?: emptyList()
-                    HomePeriod.Yesterday -> state.yesterdayStats?.apps ?: emptyList()
-                    HomePeriod.Week -> state.weeklyStats?.apps ?: emptyList()
-                }
                 LazyColumn(
                     modifier = Modifier
                         .fillMaxWidth()
                         .weight(1f),
-                    contentPadding = androidx.compose.foundation.layout.PaddingValues(16.dp),
+                    contentPadding = PaddingValues(16.dp),
                     verticalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    items(apps) { app ->
+                    items(apps, key = { it.packageName }) { app ->
                         AppUsageCard(
                             packageName = app.packageName,
                             appName = app.appName,
@@ -390,6 +245,59 @@ private fun HomeContent(
                 }
             }
         }
+    }
+}
+
+@Composable
+private fun UsageSummary(title: String, totalUsageMs: Long, appCount: Int) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp)
+    ) {
+        Text(
+            text = title,
+            style = MaterialTheme.typography.titleMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+        Text(
+            text = formatDuration(totalUsageMs),
+            style = MaterialTheme.typography.headlineMedium
+        )
+        Text(
+            text = "$appCount приложений",
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+    }
+}
+
+@Composable
+private fun EmptyState(modifier: Modifier = Modifier) {
+    Column(
+        modifier = modifier
+            .fillMaxWidth()
+            .padding(16.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.Center
+    ) {
+        Icon(
+            imageVector = Icons.Default.BarChart,
+            contentDescription = null,
+            modifier = Modifier.size(64.dp),
+            tint = MaterialTheme.colorScheme.primary
+        )
+        Text(
+            text = "Нет данных",
+            style = MaterialTheme.typography.titleLarge,
+            modifier = Modifier.padding(top = 16.dp)
+        )
+        Text(
+            text = "Статистика появится после начала использования приложений",
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.padding(top = 8.dp)
+        )
     }
 }
 
@@ -494,7 +402,7 @@ private fun ExceededLimitsBlock(
                     .fillMaxWidth()
                     .padding(vertical = 4.dp),
                 onClick = { onClick(info.packageName) },
-                colors = androidx.compose.material3.CardDefaults.cardColors(
+                colors = CardDefaults.cardColors(
                     containerColor = MaterialTheme.colorScheme.errorContainer
                 )
             ) {
@@ -531,7 +439,7 @@ private fun ExceededLimitsBlock(
                             text = "Превышение: +${info.overMinutes} мин",
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.error,
-                            fontWeight = androidx.compose.ui.text.font.FontWeight.Bold
+                            fontWeight = FontWeight.Bold
                         )
                     }
 
