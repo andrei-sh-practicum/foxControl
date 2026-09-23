@@ -170,7 +170,7 @@ class HomePeriodTest {
 
     @Test
     fun homePeriod_valuesCount() {
-        assertEquals(2, HomePeriod.values().size)
+        assertEquals(3, HomePeriod.values().size)
     }
 
     @Test
@@ -204,7 +204,8 @@ class HomePeriodTest {
     @Test
     fun homePeriod_entriesVsValues() {
         assertEquals(HomePeriod.Today, HomePeriod.entries[0])
-        assertEquals(HomePeriod.Week, HomePeriod.entries[1])
+        assertEquals(HomePeriod.Yesterday, HomePeriod.entries[1])
+        assertEquals(HomePeriod.Week, HomePeriod.entries[2])
     }
 }
 

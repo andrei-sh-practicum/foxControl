@@ -115,13 +115,40 @@ class OnboardingPermissionsTest {
         assertEquals(1, getMissingPermissionCount(permissions))
     }
 
-    // Helper function to match the one in PermissionHelper
-    private fun getMissingPermissionCount(permissions: OnboardingPermissions): Int {
-        var count = 0
-        if (!permissions.usageStats) count++
-        if (!permissions.overlay) count++
-        if (!permissions.notifications) count++
-        if (!permissions.batteryOptimization) count++
-        return count
+    @Test
+    fun criticalGranted_onlyUsageStatsAndOverlayMatter() {
+        val permissions = OnboardingPermissions(
+            usageStats = true,
+            overlay = true,
+            notifications = false,
+            batteryOptimization = false
+        )
+        assertTrue(permissions.criticalGranted)
+        assertFalse(permissions.allGranted)
     }
+
+    @Test
+    fun criticalGranted_false_whenUsageStatsMissing() {
+        val permissions = OnboardingPermissions(
+            usageStats = false,
+            overlay = true,
+            notifications = true,
+            batteryOptimization = true
+        )
+        assertFalse(permissions.criticalGranted)
+    }
+
+    @Test
+    fun criticalGranted_false_whenOverlayMissing() {
+        val permissions = OnboardingPermissions(
+            usageStats = true,
+            overlay = false,
+            notifications = true,
+            batteryOptimization = true
+        )
+        assertFalse(permissions.criticalGranted)
+    }
+
+    private fun getMissingPermissionCount(permissions: OnboardingPermissions): Int =
+        PermissionHelper.getMissingPermissionCount(permissions)
 }

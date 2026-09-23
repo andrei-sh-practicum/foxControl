@@ -154,18 +154,20 @@
 Порядок выбран так, чтобы сначала шли самые безопасные изменения, а каждый следующий этап опирался на предыдущий.
 
 ### Этап 0 — подготовка (без изменений кода приложения)
-- [ ] 0.1 Создать ветку `refactoring/cleanup` от `master`.
+- [x] 0.1 ~~Создать ветку~~ — по решению владельца работа идёт прямо в `master`, по коммиту на пункт.
 - [ ] 0.2 Починить сборку `androidTest`. `HomeScreenUiTest` использует `HiltAndroidRule` и `runTest`, но в зависимостях нет `hilt-android-testing` и `kotlinx-coroutines-test`, runner не Hilt-овский. Варианты: добавить зависимости и `HiltTestRunner` или удалить нерабочий тест (он всё равно создаёт свои моки, а не проверяет `HomeScreen`). Решение за владельцем.
-- [ ] 0.3 **Характеризационные тесты перед переносом логики** (JVM, `app/src/test`):
-  - `LimitCalculator` / текущий `computeExceededApps`: границы `==limit`, `limit+1`, отсутствие лимита.
-  - `getDailyUsage` (с моком DAO): порог `59 999 / 60 000` мс, `totalUsageMs` = сумма **отфильтрованных** приложений (текущее поведение с `bf44269`, см. [B-18](bugs_plan.md#b-18-побочные-эффекты-фильтра--1-мин-в-getdailyusage)). При выносе `withCategories()` (DUP-5) и `LimitCalculator` фильтр должен остаться **до** заполнения категорий и расчёта итога; порог вынести в константу `MIN_APP_USAGE_MS = 60_000L`. ⚠️ После исправления B-18 (вариант А) тест обновить: итог и `apps` из репозитория станут полными, фильтр переедет в отображение.
-  - `formatDuration`: уже есть `FormatUtilsTest`, дополнить `0`, `59 999`, `3 600 000`.
-  - `AppUsageHourCalculator`: пересечение сессии с границей часа, будущие часы.
-  - Текст email-отчёта: вынести построение `body` в чистую функцию (этап 5) и зафиксировать golden-строку.
-- [ ] 0.4 Переписать или удалить тесты, которые проверяют **копии** логики, а не продакшн-код:
+- [x] 0.3 **Характеризационные тесты перед переносом логики** (JVM, `app/src/test`):
+  - *(перенесено в 4.4 — пишется вместе с выносом `LimitCalculator`, т.к. `computeExceededApps` приватный)* `LimitCalculator` / текущий `computeExceededApps`: границы `==limit`, `limit+1`, отсутствие лимита.
+  - ✔️ `UsageStatsRepositoryImplTest`: `getDailyUsage` (с моком DAO): порог `59 999 / 60 000` мс, `totalUsageMs` = сумма **отфильтрованных** приложений (текущее поведение с `bf44269`, см. [B-18](bugs_plan.md#b-18-побочные-эффекты-фильтра--1-мин-в-getdailyusage)). При выносе `withCategories()` (DUP-5) и `LimitCalculator` фильтр должен остаться **до** заполнения категорий и расчёта итога; порог вынести в константу `MIN_APP_USAGE_MS = 60_000L`. ⚠️ После исправления B-18 (вариант А) тест обновить: итог и `apps` из репозитория станут полными, фильтр переедет в отображение.
+  - `formatDuration`: уже покрыт `FormatUtilsTest` (0, 1 с, 59 мин, часы) — дополнять не нужно.
+  - ✔️ `AppUsageHourCalculatorTest`: пересечение сессии с границей часа, будущие часы.
+  - *(перенесено в 3.4)* Текст email-отчёта: golden-строка фиксируется при выносе `EmailReportBuilder`.
+- [x] 0.4 Переписать или удалить тесты, которые проверяют **копии** логики, а не продакшн-код:
   - `AlertManagerLogicTest` проверяет «cooldown 60 с», которого в коде нет (там раз в сутки через `alert_logs`).
   - `UsageStatsRepositoryLogicTest` проверяет локальные `calculateDailyUsage`/`UsageStatsSummary`, объявленные в самом тесте.
   - `OnboardingPermissionsTest` дублирует `getMissingPermissionCount` приватной копией вместо вызова `PermissionHelper.getMissingPermissionCount`.
+  - ✔️ Сделано: `AlertManagerLogicTest` и `UsageStatsRepositoryLogicTest` удалены (заменены `UsageStatsRepositoryImplTest`), `OnboardingPermissionsTest` вызывает `PermissionHelper` + тесты `criticalGranted`. Заодно исправлен устаревший `HomePeriodTest` (в `HomePeriod` три значения, а тест ждал два).
+- [x] 0.5 Локальная сборка: Gradle 8.11.1 скачивается во временную папку (в репозитории нет `gradle-wrapper.jar`), `:app:compileDebugKotlin` + `:app:testDebugUnitTest` проходят (101 тест).
 
 ### Этап 1 — мёртвый код 🟢
 - [ ] 1.1 Удалить `EmailSettingsRepository.kt` (D-1).
