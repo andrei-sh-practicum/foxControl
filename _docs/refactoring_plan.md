@@ -155,7 +155,7 @@
 
 ### Этап 0 — подготовка (без изменений кода приложения)
 - [x] 0.1 ~~Создать ветку~~ — по решению владельца работа идёт прямо в `master`, по коммиту на пункт.
-- [ ] 0.2 Починить сборку `androidTest`. `HomeScreenUiTest` использует `HiltAndroidRule` и `runTest`, но в зависимостях нет `hilt-android-testing` и `kotlinx-coroutines-test`, runner не Hilt-овский. Варианты: добавить зависимости и `HiltTestRunner` или удалить нерабочий тест (он всё равно создаёт свои моки, а не проверяет `HomeScreen`). Решение за владельцем.
+- [x] 0.2 ~~Починить сборку `androidTest`~~ — по решению владельца нерабочий `HomeScreenUiTest` удалён вместе с зависимостями `androidTestImplementation` (включая ошибочную координату `androidx.compose:bom`). Деревья зависимостей debug/release/unitTest не изменились.
 - [x] 0.3 **Характеризационные тесты перед переносом логики** (JVM, `app/src/test`):
   - *(перенесено в 4.4 — пишется вместе с выносом `LimitCalculator`, т.к. `computeExceededApps` приватный)* `LimitCalculator` / текущий `computeExceededApps`: границы `==limit`, `limit+1`, отсутствие лимита.
   - ✔️ `UsageStatsRepositoryImplTest`: `getDailyUsage` (с моком DAO): порог `59 999 / 60 000` мс, `totalUsageMs` = сумма **отфильтрованных** приложений (текущее поведение с `bf44269`, см. [B-18](bugs_plan.md#b-18-побочные-эффекты-фильтра--1-мин-в-getdailyusage)). При выносе `withCategories()` (DUP-5) и `LimitCalculator` фильтр должен остаться **до** заполнения категорий и расчёта итога; порог вынести в константу `MIN_APP_USAGE_MS = 60_000L`. ⚠️ После исправления B-18 (вариант А) тест обновить: итог и `apps` из репозитория станут полными, фильтр переедет в отображение.
@@ -221,7 +221,7 @@
 - [x] 6.2 `HomeScreen`: `UsageSummary`/`EmptyState` (DUP-12), `entries`, `key` (U-5).
 - [x] 6.3 `PrivateSettingsScreen`: разбиение на файлы (`PrivateSettingsGate.kt`, `PrivateSettingsDialogs.kt`, `PrivateSettingsComponents.kt`), `PasswordTextField`, `AppPickerDropdown` (U-4, DUP-13).
 - [x] 6.4 `Divider` → `HorizontalDivider` (U-7), навигация (U-10), FQN → импорты по всему приложению (U-6).
-- [ ] 6.5 ⏸ **ждёт подтверждения владельца** — `verticalScroll` (U-3), цвет сообщения (U-8).
+- [x] 6.5 Прокрутка (U-3) в приватных настройках и инструкциях производителей — добавлена по решению владельца. Цвет сообщения (U-8) — ⏸ решение не принято, не менялся.
 - [ ] 6.6 *(опционально)* перенос строк в `strings.xml` (U-9).
 
 ### Этап 7 — Build и документация 🟢

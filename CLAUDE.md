@@ -26,9 +26,6 @@ Fox Control (`com.andrew.foxcontrol`) is a private Android parental-control app 
 # Single test method
 ./gradlew :app:testDebugUnitTest --tests "com.andrew.foxcontrol.core.vendor.VendorHelperTest.vendorEnumHasAllValues"
 
-# Instrumented tests (app/src/androidTest, needs connected device/emulator)
-./gradlew :app:connectedDebugAndroidTest
-
 # Install debug build to a connected device
 ./gradlew :app:installDebug
 ```
@@ -59,7 +56,7 @@ Bump `versionCode`/`versionName` in `app/build.gradle.kts` before cutting a buil
 
 ### Tests
 - `app/src/test` — JVM tests (JUnit4 + MockK) against production code: repository (`UsageStatsRepositoryImplTest`, `EmailRepositoryTest` with a fake cipher), `LimitCalculator`, `UsageListFilter`, `ReportSchedule`, `EmailReportBuilder` (golden text), `DateUtils`, hourly calculators, permissions, UI state classes. Classes that construct `Intent`s or call Android APIs directly (`AlertManager`, services, Keystore cipher) are not unit-tested — Android stubs throw on the JVM; `TrackingLogStorage` must be mocked (`mockkObject`) in tests that log.
-- `app/src/androidTest/.../HomeScreenUiTest` uses `HiltAndroidRule`/`runTest`, but `hilt-android-testing` and `kotlinx-coroutines-test` are not declared, so `connectedDebugAndroidTest` does not compile as-is (open question, refactoring_plan 0.2).
+- No instrumented tests: the broken `androidTest` was removed (owner's decision); verification on a device is manual (checklist in `_docs/refactoring_plan.md`).
 
 ### Build notes
 - Dependency and plugin versions live in `gradle/libs.versions.toml`.

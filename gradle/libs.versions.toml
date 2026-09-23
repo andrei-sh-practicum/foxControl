@@ -9,7 +9,6 @@ coreKtx = "1.15.0"
 compose = "1.7.8"
 composeMaterial3 = "1.3.1"
 composeMaterialIcons = "1.7.6"
-composeBom = "2024.09.00"
 activityCompose = "1.9.3"
 lifecycle = "2.8.7"
 navigation = "2.8.5"
@@ -21,8 +20,6 @@ jakartaMail = "2.1.3"
 angusMail = "2.0.3"
 junit = "4.13.2"
 mockk = "1.13.16"
-androidxTestJunit = "1.2.1"
-espresso = "3.6.1"
 
 [libraries]
 androidx-core-ktx = { module = "androidx.core:core-ktx", version.ref = "coreKtx" }
@@ -36,9 +33,6 @@ compose-material-icons-extended = { module = "androidx.compose.material:material
 # versions aligned by the compose-ui dependency constraints
 compose-ui-tooling = { module = "androidx.compose.ui:ui-tooling" }
 compose-ui-test-manifest = { module = "androidx.compose.ui:ui-test-manifest" }
-compose-ui-test-junit4 = { module = "androidx.compose.ui:ui-test-junit4", version.ref = "compose" }
-# NB: kept 1:1 from the old build file; the real BOM is androidx.compose:compose-bom (androidTest only, see refactoring_plan 0.2)
-compose-bom = { module = "androidx.compose:bom", version.ref = "composeBom" }
 androidx-activity-compose = { module = "androidx.activity:activity-compose", version.ref = "activityCompose" }
 androidx-lifecycle-viewmodel-compose = { module = "androidx.lifecycle:lifecycle-viewmodel-compose", version.ref = "lifecycle" }
 androidx-lifecycle-runtime-compose = { module = "androidx.lifecycle:lifecycle-runtime-compose", version.ref = "lifecycle" }
@@ -55,8 +49,6 @@ jakarta-mail-api = { module = "jakarta.mail:jakarta.mail-api", version.ref = "ja
 angus-mail = { module = "org.eclipse.angus:angus-mail", version.ref = "angusMail" }
 junit = { module = "junit:junit", version.ref = "junit" }
 mockk = { module = "io.mockk:mockk", version.ref = "mockk" }
-androidx-test-junit = { module = "androidx.test.ext:junit", version.ref = "androidxTestJunit" }
-androidx-test-espresso = { module = "androidx.test.espresso:espresso-core", version.ref = "espresso" }
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }
