@@ -36,6 +36,7 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -48,6 +49,7 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.andrew.foxcontrol.R
+import kotlinx.coroutines.delay
 
 @Composable
 fun PrivateSettingsScreen(
@@ -170,6 +172,16 @@ private fun PrivateSettingsContent(
     var showAppLimitDialog by remember { mutableStateOf(false) }
     var showClearTrackedAppsDialog by remember { mutableStateOf(false) }
     var showExcludeAppDialog by remember { mutableStateOf(false) }
+
+    // Close the change-password dialog only after the new password was saved,
+    // then keep the confirmation visible for a moment
+    LaunchedEffect(state.passwordChangeResult) {
+        if (state.passwordChangeResult == PasswordChangeResult.Success) {
+            showChangePasswordDialog = false
+            delay(PASSWORD_CHANGED_MESSAGE_MS)
+            onEvent(PrivateSettingsEvent.OnPasswordChangeResultConsumed)
+        }
+    }
 
     Scaffold(
         topBar = {
@@ -328,6 +340,13 @@ private fun PrivateSettingsContent(
                 Icon(Icons.Default.Security, contentDescription = null)
                 Text("Сменить пароль")
             }
+            if (state.passwordChangeResult == PasswordChangeResult.Success) {
+                Text(
+                    text = "Пароль изменён",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.primary
+                )
+            }
 
             // Email settings
             Button(
@@ -384,11 +403,19 @@ private fun PrivateSettingsContent(
 
         // Change password dialog
         if (showChangePasswordDialog) {
+            val wrongOldPassword = state.passwordChangeResult == PasswordChangeResult.WrongOldPassword
             ChangePasswordDialog(
-                onDismiss = { showChangePasswordDialog = false },
-                onChangePassword = { oldPassword, newPassword ->
-                    onEvent(PrivateSettingsEvent.OnChangePassword(oldPassword, newPassword))
+                wrongOldPassword = wrongOldPassword,
+                onOldPasswordEdited = {
+                    if (wrongOldPassword) onEvent(PrivateSettingsEvent.OnPasswordChangeResultConsumed)
+                },
+                onDismiss = {
                     showChangePasswordDialog = false
+                    onEvent(PrivateSettingsEvent.OnPasswordChangeResultConsumed)
+                },
+                onChangePassword = { oldPassword, newPassword ->
+                    // Dialog stays open: it's closed by the LaunchedEffect above on success
+                    onEvent(PrivateSettingsEvent.OnChangePassword(oldPassword, newPassword))
                 }
             )
         }
@@ -654,8 +681,13 @@ private fun PrivateSettingsContent(
     }
 }
 
+private const val MIN_PASSWORD_LENGTH = 4
+private const val PASSWORD_CHANGED_MESSAGE_MS = 2000L
+
 @Composable
 private fun ChangePasswordDialog(
+    wrongOldPassword: Boolean,
+    onOldPasswordEdited: () -> Unit,
     onDismiss: () -> Unit,
     onChangePassword: (String, String) -> Unit
 ) {
@@ -665,6 +697,16 @@ private fun ChangePasswordDialog(
     var newPasswordVisible by remember { mutableStateOf(false) }
     var confirmPassword by remember { mutableStateOf("") }
     var confirmPasswordVisible by remember { mutableStateOf(false) }
+    // Validation errors are shown after the first "Сменить" click
+    var submitAttempted by remember { mutableStateOf(false) }
+
+    val newPasswordError = if (submitAttempted && newPassword.length < MIN_PASSWORD_LENGTH) {
+        "Минимум $MIN_PASSWORD_LENGTH символа"
+    } else null
+    val confirmPasswordError = if (submitAttempted && confirmPassword != newPassword) {
+        "Пароли не совпадают"
+    } else null
+    val oldPasswordError = if (wrongOldPassword) "Неверный текущий пароль" else null
 
     AlertDialog(
         onDismissRequest = onDismiss,
@@ -673,9 +715,14 @@ private fun ChangePasswordDialog(
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 OutlinedTextField(
                     value = oldPassword,
-                    onValueChange = { oldPassword = it },
+                    onValueChange = {
+                        oldPassword = it
+                        onOldPasswordEdited()
+                    },
                     label = { Text("Текущий пароль") },
                     modifier = Modifier.fillMaxWidth(),
+                    isError = oldPasswordError != null,
+                    supportingText = if (oldPasswordError != null) { { Text(oldPasswordError) } } else null,
                     visualTransformation = if (oldPasswordVisible) VisualTransformation.None else PasswordVisualTransformation(),
                     trailingIcon = {
                         IconButton(onClick = { oldPasswordVisible = !oldPasswordVisible }) {
@@ -691,6 +738,8 @@ private fun ChangePasswordDialog(
                     onValueChange = { newPassword = it },
                     label = { Text("Новый пароль") },
                     modifier = Modifier.fillMaxWidth(),
+                    isError = newPasswordError != null,
+                    supportingText = if (newPasswordError != null) { { Text(newPasswordError) } } else null,
                     visualTransformation = if (newPasswordVisible) VisualTransformation.None else PasswordVisualTransformation(),
                     trailingIcon = {
                         IconButton(onClick = { newPasswordVisible = !newPasswordVisible }) {
@@ -706,6 +755,8 @@ private fun ChangePasswordDialog(
                     onValueChange = { confirmPassword = it },
                     label = { Text("Подтвердите пароль") },
                     modifier = Modifier.fillMaxWidth(),
+                    isError = confirmPasswordError != null,
+                    supportingText = if (confirmPasswordError != null) { { Text(confirmPasswordError) } } else null,
                     visualTransformation = if (confirmPasswordVisible) VisualTransformation.None else PasswordVisualTransformation(),
                     trailingIcon = {
                         IconButton(onClick = { confirmPasswordVisible = !confirmPasswordVisible }) {
@@ -721,7 +772,8 @@ private fun ChangePasswordDialog(
         confirmButton = {
             TextButton(
                 onClick = {
-                    if (newPassword == confirmPassword && newPassword.length >= 4) {
+                    submitAttempted = true
+                    if (newPassword.length >= MIN_PASSWORD_LENGTH && newPassword == confirmPassword) {
                         onChangePassword(oldPassword, newPassword)
                     }
                 }

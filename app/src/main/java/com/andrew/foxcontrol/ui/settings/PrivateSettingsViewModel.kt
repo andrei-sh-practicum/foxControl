@@ -51,19 +51,8 @@ class PrivateSettingsViewModel @Inject constructor(
         }
     }
 
-    fun setPassword(password: String) {
-        viewModelScope.launch {
-            // Simple hash (in production use proper hashing)
-            val hash = password.hashCode().toString()
-            userRepository.setPasswordHash(hash)
-            _state.update {
-                it.copy(
-                    passwordHash = hash,
-                    isLoading = false
-                )
-            }
-        }
-    }
+    // Simple hash (kept as is — see _docs/bugs_plan.md, B-14)
+    private fun hashPassword(password: String): String = password.hashCode().toString()
 
     fun verifyPassword(password: String): Boolean {
         val currentHash = _state.value.passwordHash
@@ -71,13 +60,26 @@ class PrivateSettingsViewModel @Inject constructor(
             // No password set yet
             false
         } else {
-            password.hashCode().toString() == currentHash
+            hashPassword(password) == currentHash
         }
     }
 
     fun changePassword(oldPassword: String, newPassword: String) {
-        if (verifyPassword(oldPassword)) {
-            setPassword(newPassword)
+        if (!verifyPassword(oldPassword)) {
+            _state.update { it.copy(passwordChangeResult = PasswordChangeResult.WrongOldPassword) }
+            return
+        }
+        viewModelScope.launch {
+            val hash = hashPassword(newPassword)
+            userRepository.setPasswordHash(hash)
+            _state.update {
+                it.copy(
+                    passwordHash = hash,
+                    isLoading = false,
+                    error = null,
+                    passwordChangeResult = PasswordChangeResult.Success
+                )
+            }
         }
     }
 
@@ -103,7 +105,9 @@ class PrivateSettingsViewModel @Inject constructor(
             }
             is PrivateSettingsEvent.OnChangePassword -> {
                 changePassword(event.oldPassword, event.newPassword)
-                _state.update { it.copy(error = null) }
+            }
+            PrivateSettingsEvent.OnPasswordChangeResultConsumed -> {
+                _state.update { it.copy(passwordChangeResult = null) }
             }
             is PrivateSettingsEvent.OnGlobalLimitChanged -> {
                 _state.update { it.copy(globalDailyLimitMinutes = event.minutes) }
@@ -181,13 +185,20 @@ data class PrivateSettingsState(
     val appLimits: Map<String, Int> = emptyMap(),
     val trackedApps: List<TrackedAppEntity> = emptyList(),
     val error: String? = null,
-    val addAppLimitError: String? = null
+    val addAppLimitError: String? = null,
+    val passwordChangeResult: PasswordChangeResult? = null
 )
+
+sealed interface PasswordChangeResult {
+    object Success : PasswordChangeResult
+    object WrongOldPassword : PasswordChangeResult
+}
 
 sealed class PrivateSettingsEvent {
     object OnClearTrackedApps : PrivateSettingsEvent()
     data class OnPasswordEntered(val password: String) : PrivateSettingsEvent()
     data class OnChangePassword(val oldPassword: String, val newPassword: String) : PrivateSettingsEvent()
+    object OnPasswordChangeResultConsumed : PrivateSettingsEvent()
     data class OnGlobalLimitChanged(val minutes: Int) : PrivateSettingsEvent()
     data class OnAppLimitChanged(val packageName: String, val limitMinutes: Int) : PrivateSettingsEvent()
     data class OnAddAppLimit(val packageName: String, val appName: String, val limitMinutes: Int) : PrivateSettingsEvent()
