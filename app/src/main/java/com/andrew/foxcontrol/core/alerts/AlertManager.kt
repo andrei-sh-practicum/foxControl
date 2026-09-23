@@ -44,7 +44,7 @@ class AlertManager @Inject constructor(
                 showLimitExceededAlert(
                     packageName = AlertType.GLOBAL,
                     appName = "Весь смартфон",
-                    limitMinutes = getGlobalLimitMinutes(),
+                    limitMinutes = globalLimit.dailyLimitMinutes,
                     usedMinutes = dailyUsage.totalUsageMs.toInt() / (1000 * 60),
                     isGlobal = true
                 )
@@ -109,9 +109,5 @@ class AlertManager @Inject constructor(
         )
 
         Log.d(TAG, "Alert shown: $appName - $usedMinutes/$limitMinutes minutes")
-    }
-
-    private fun getGlobalLimitMinutes(): Int {
-        return 120 // Default 2 hours if not configured
     }
 }

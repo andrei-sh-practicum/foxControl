@@ -8,9 +8,7 @@ interface GlobalLimitDao {
     @Query("SELECT * FROM global_limit WHERE id = 1")
     suspend fun getGlobalLimit(): GlobalLimitEntity?
 
-    @Query("UPDATE global_limit SET dailyLimitMinutes = :minutes, enabled = :enabled WHERE id = 1")
-    suspend fun setGlobalLimit(minutes: Int, enabled: Boolean)
-
+    /** Upsert of the single row (id = 1). */
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertGlobalLimit(limit: GlobalLimitEntity)
 }

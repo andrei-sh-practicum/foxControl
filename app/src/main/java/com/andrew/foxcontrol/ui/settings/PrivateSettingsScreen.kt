@@ -220,7 +220,11 @@ private fun PrivateSettingsContent(
                     }
                 }
                 Text(
-                    text = "${state.globalDailyLimitMinutes} мин/день",
+                    text = if (state.globalDailyLimitMinutes > 0) {
+                        "${state.globalDailyLimitMinutes} мин/день"
+                    } else {
+                        "Не установлен"
+                    },
                     style = MaterialTheme.typography.bodyLarge
                 )
             }
@@ -418,24 +422,37 @@ private fun PrivateSettingsContent(
             )
         }
 
-        // Global limit dialog
+        // Global limit dialog: edits a local draft, saved only on "Готово"
         if (showGlobalLimitDialog) {
+            var minutesText by remember {
+                mutableStateOf(state.globalDailyLimitMinutes.takeIf { it > 0 }?.toString() ?: "")
+            }
+            val minutesValid = minutesText.all { it.isDigit() } && minutesText.length <= 4
+
             AlertDialog(
                 onDismissRequest = { showGlobalLimitDialog = false },
                 title = { Text("Общий дневной лимит") },
                 text = {
                     OutlinedTextField(
-                        value = state.globalDailyLimitMinutes.toString(),
-                        onValueChange = {
-                            val minutes = it.toIntOrNull() ?: 0
-                            onEvent(PrivateSettingsEvent.OnGlobalLimitChanged(minutes))
-                        },
+                        value = minutesText,
+                        onValueChange = { minutesText = it },
                         label = { Text("Минут в день") },
+                        singleLine = true,
+                        isError = !minutesValid,
+                        supportingText = {
+                            Text(if (minutesValid) "Пусто или 0 — лимит выключен" else "Введите целое число минут")
+                        },
                         modifier = Modifier.fillMaxWidth()
                     )
                 },
                 confirmButton = {
-                    TextButton(onClick = { showGlobalLimitDialog = false }) {
+                    TextButton(
+                        enabled = minutesValid,
+                        onClick = {
+                            onEvent(PrivateSettingsEvent.OnGlobalLimitChanged(minutesText.toIntOrNull() ?: 0))
+                            showGlobalLimitDialog = false
+                        }
+                    ) {
                         Text("Готово")
                     }
                 },

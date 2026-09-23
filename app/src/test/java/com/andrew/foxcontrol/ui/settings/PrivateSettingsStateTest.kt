@@ -15,7 +15,7 @@ class PrivateSettingsStateTest {
         assertTrue(state.isLoading)
         assertFalse(state.isAuthenticated)
         assertNull(state.passwordHash)
-        assertEquals(120, state.globalDailyLimitMinutes)
+        assertEquals(0, state.globalDailyLimitMinutes)
         assertTrue(state.appLimits.isEmpty())
         assertNull(state.error)
     }
@@ -127,7 +127,7 @@ class PrivateSettingsStateTest {
         val original = PrivateSettingsState()
         val modified = original.copy(globalDailyLimitMinutes = 999)
 
-        assertEquals(120, original.globalDailyLimitMinutes)
+        assertEquals(0, original.globalDailyLimitMinutes)
         assertEquals(999, modified.globalDailyLimitMinutes)
     }
 
@@ -179,8 +179,9 @@ class PrivateSettingsStateTest {
     }
 
     @Test
-    fun globalLimit_defaultIsTwoHours() {
-        assertEquals(120, PrivateSettingsState().globalDailyLimitMinutes)
+    fun globalLimit_defaultIsNotSet() {
+        // B-1: the limit is loaded from the DB; 0 = not set (was a fake 120 never saved)
+        assertEquals(0, PrivateSettingsState().globalDailyLimitMinutes)
     }
 
     @Test

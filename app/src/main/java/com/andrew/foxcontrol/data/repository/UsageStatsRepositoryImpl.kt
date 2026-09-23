@@ -171,8 +171,13 @@ class UsageStatsRepositoryImpl @Inject constructor(
 
     override suspend fun getGlobalLimit(): GlobalLimitEntity? = globalLimitDao.getGlobalLimit()
 
-    suspend fun setGlobalLimit(dailyLimitMinutes: Int, enabled: Boolean) {
-        globalLimitDao.setGlobalLimit(dailyLimitMinutes, enabled)
+    override suspend fun setGlobalLimit(dailyLimitMinutes: Int) {
+        globalLimitDao.insertGlobalLimit(
+            GlobalLimitEntity(
+                dailyLimitMinutes = dailyLimitMinutes,
+                enabled = dailyLimitMinutes > 0
+            )
+        )
     }
 
     // --- App limits ---

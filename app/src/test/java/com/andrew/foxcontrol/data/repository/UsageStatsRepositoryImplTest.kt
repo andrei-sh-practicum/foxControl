@@ -8,6 +8,7 @@ import com.andrew.foxcontrol.data.local.dao.ServiceHeartbeatDao
 import com.andrew.foxcontrol.data.local.dao.TrackedAppDao
 import com.andrew.foxcontrol.data.local.dao.UsageSessionDao
 import com.andrew.foxcontrol.data.local.entity.AppLimitEntity
+import com.andrew.foxcontrol.data.local.entity.GlobalLimitEntity
 import com.andrew.foxcontrol.data.local.entity.TrackedAppEntity
 import com.andrew.foxcontrol.data.local.entity.UsageSessionEntity
 import io.mockk.coEvery
@@ -29,6 +30,7 @@ class UsageStatsRepositoryImplTest {
     private lateinit var usageSessionDao: UsageSessionDao
     private lateinit var trackedAppDao: TrackedAppDao
     private lateinit var appLimitDao: AppLimitDao
+    private lateinit var globalLimitDao: GlobalLimitDao
     private lateinit var repository: UsageStatsRepositoryImpl
 
     @Before
@@ -36,11 +38,12 @@ class UsageStatsRepositoryImplTest {
         usageSessionDao = mockk()
         trackedAppDao = mockk()
         appLimitDao = mockk()
+        globalLimitDao = mockk()
         repository = UsageStatsRepositoryImpl(
             usageSessionDao = usageSessionDao,
             trackedAppDao = trackedAppDao,
             appLimitDao = appLimitDao,
-            globalLimitDao = mockk<GlobalLimitDao>(),
+            globalLimitDao = globalLimitDao,
             serviceHeartbeatDao = mockk<ServiceHeartbeatDao>(),
             alertLogDao = mockk<AlertLogDao>(),
             packageManager = mockk<PackageManager>()
@@ -157,5 +160,16 @@ class UsageStatsRepositoryImplTest {
         repository.trackUsageSession("app", "App", 1_000_000L, 1_060_000L, 60_000L, isEntertainment = false)
 
         coVerify(exactly = 0) { usageSessionDao.insertSession(any()) }
+    }
+
+    @Test
+    fun setGlobalLimit_upsertsRowAndEnablesOnlyForPositiveMinutes() = runBlocking {
+        coEvery { globalLimitDao.insertGlobalLimit(any()) } returns Unit
+
+        repository.setGlobalLimit(90)
+        coVerify { globalLimitDao.insertGlobalLimit(GlobalLimitEntity(id = 1, dailyLimitMinutes = 90, enabled = true)) }
+
+        repository.setGlobalLimit(0)
+        coVerify { globalLimitDao.insertGlobalLimit(GlobalLimitEntity(id = 1, dailyLimitMinutes = 0, enabled = false)) }
     }
 }

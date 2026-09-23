@@ -38,6 +38,8 @@ interface UsageStatsRepository {
 
     // --- Limits ---
     suspend fun getGlobalLimit(): GlobalLimitEntity?
+    /** Whole-phone daily limit; `0` disables it (enabled = minutes > 0). */
+    suspend fun setGlobalLimit(dailyLimitMinutes: Int)
     /** Enabled app limits only. */
     suspend fun getAppLimits(): List<AppLimitEntity>
     suspend fun setAppLimit(packageName: String, dailyLimitMinutes: Int, enabled: Boolean)

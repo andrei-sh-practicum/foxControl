@@ -36,6 +36,13 @@ class PrivateSettingsViewModel @Inject constructor(
                 }
         }
 
+        // Load global limit from DB (0 = not set)
+        viewModelScope.launch {
+            val globalLimit = usageStatsRepository.getGlobalLimit()
+            val minutes = globalLimit?.takeIf { it.enabled }?.dailyLimitMinutes ?: 0
+            _state.update { it.copy(globalDailyLimitMinutes = minutes) }
+        }
+
         // Load app limits from DB
         viewModelScope.launch {
             val limits = usageStatsRepository.getAppLimits()
@@ -109,7 +116,14 @@ class PrivateSettingsViewModel @Inject constructor(
                 _state.update { it.copy(passwordChangeResult = null) }
             }
             is PrivateSettingsEvent.OnGlobalLimitChanged -> {
-                _state.update { it.copy(globalDailyLimitMinutes = event.minutes) }
+                viewModelScope.launch {
+                    try {
+                        usageStatsRepository.setGlobalLimit(event.minutes)
+                        _state.update { it.copy(globalDailyLimitMinutes = event.minutes) }
+                    } catch (e: Exception) {
+                        _state.update { it.copy(error = "Ошибка при сохранении лимита: ${e.message}") }
+                    }
+                }
             }
             is PrivateSettingsEvent.OnAppLimitChanged -> {
                 _state.update {
@@ -180,7 +194,8 @@ data class PrivateSettingsState(
     val isLoading: Boolean = true,
     val isAuthenticated: Boolean = false,
     val passwordHash: String? = null,
-    val globalDailyLimitMinutes: Int = 120,
+    /** Whole-phone daily limit in minutes; 0 = not set. */
+    val globalDailyLimitMinutes: Int = 0,
     val appLimits: Map<String, Int> = emptyMap(),
     val trackedApps: List<TrackedAppEntity> = emptyList(),
     val error: String? = null,
@@ -198,6 +213,7 @@ sealed class PrivateSettingsEvent {
     data class OnPasswordEntered(val password: String) : PrivateSettingsEvent()
     data class OnChangePassword(val oldPassword: String, val newPassword: String) : PrivateSettingsEvent()
     object OnPasswordChangeResultConsumed : PrivateSettingsEvent()
+    /** Saved on dialog confirm; 0 disables the limit. */
     data class OnGlobalLimitChanged(val minutes: Int) : PrivateSettingsEvent()
     data class OnAppLimitChanged(val packageName: String, val limitMinutes: Int) : PrivateSettingsEvent()
     data class OnAddAppLimit(val packageName: String, val appName: String, val limitMinutes: Int) : PrivateSettingsEvent()
