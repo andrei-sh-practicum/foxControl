@@ -5,16 +5,19 @@ import org.junit.Test
 import java.util.Calendar
 
 /**
- * Characterization tests for [AppUsageHourCalculator] (see _docs/refactoring_plan.md, stage 0.3).
+ * Tests for [AppUsageHourCalculator].
  *
- * Like DowntimeCalculator, the calculator builds its hour windows from Calendar.getInstance(),
- * i.e. always for TODAY, so all timestamps here are taken on the current day and `now` is set
- * to the end of the visible window.
+ * By default the hour windows are built for TODAY, so most timestamps here are taken on the
+ * current day and `now` is set to the end of the visible window. The `dayStartMs` parameter
+ * builds them for another day (bugs_plan.md, B-9).
  */
 class AppUsageHourCalculatorTest {
 
-    private fun todayAt(hour: Int, minute: Int, second: Int = 0): Long {
+    private fun todayAt(hour: Int, minute: Int, second: Int = 0): Long = dayAt(0, hour, minute, second)
+
+    private fun dayAt(daysAgo: Int, hour: Int, minute: Int, second: Int = 0): Long {
         val cal = Calendar.getInstance()
+        cal.add(Calendar.DAY_OF_YEAR, -daysAgo)
         cal.set(Calendar.HOUR_OF_DAY, hour)
         cal.set(Calendar.MINUTE, minute)
         cal.set(Calendar.SECOND, second)
@@ -87,5 +90,22 @@ class AppUsageHourCalculatorTest {
         )
         assertEquals(20, minutesAt(buckets, 14))
         assertEquals(0, minutesAt(buckets, 15))
+    }
+
+    @Test
+    fun `yesterday sessions are bucketed when dayStartMs is yesterday`() {
+        val yesterdayStart = dayAt(1, 0, 0)
+        val sessions = listOf(dayAt(1, 10, 10) to dayAt(1, 10, 40))
+
+        val buckets = AppUsageHourCalculator.calculate(
+            sessions,
+            now = System.currentTimeMillis(),
+            dayStartMs = yesterdayStart
+        )
+        assertEquals(30, minutesAt(buckets, 10))
+
+        // Default (today) windows don't see yesterday's sessions — the old B-9 behavior
+        val todayBuckets = AppUsageHourCalculator.calculate(sessions, System.currentTimeMillis())
+        assertEquals(0, minutesAt(todayBuckets, 10))
     }
 }

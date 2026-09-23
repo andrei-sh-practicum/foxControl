@@ -264,7 +264,7 @@ class UsageStatsRepositoryImpl @Inject constructor(
             val heartbeats = serviceHeartbeatDao.getHeartbeatsBetween(dayStart, dayEnd)
             val timestamps = heartbeats.map { it.timestamp }
 
-            return DowntimeCalculator.calculate(timestamps, System.currentTimeMillis())
+            return DowntimeCalculator.calculate(timestamps, System.currentTimeMillis(), dayStartMs = dayStart)
         } catch (e: Exception) {
             TrackingLogStorage.add("Repo", "getServiceDowntimeBuckets EXCEPTION: ${e.message}")
             TrackingLogStorage.add("Repo", e.stackTraceToString())
@@ -278,7 +278,11 @@ class UsageStatsRepositoryImpl @Inject constructor(
             val sessions = usageSessionDao.getSessionsByPackageAndDate(packageName, date)
             val intervals = sessions.map { it.startTime to it.endTime }
 
-            return AppUsageHourCalculator.calculate(intervals, System.currentTimeMillis())
+            return AppUsageHourCalculator.calculate(
+                intervals,
+                System.currentTimeMillis(),
+                dayStartMs = DateUtils.dayBoundsMs(date).first
+            )
         } catch (e: Exception) {
             TrackingLogStorage.add("Repo", "getHourlyUsageForPackage EXCEPTION: ${e.message}")
             TrackingLogStorage.add("Repo", e.stackTraceToString())
@@ -291,7 +295,11 @@ class UsageStatsRepositoryImpl @Inject constructor(
             val sessions = usageSessionDao.getSessionsByDateSync(date)
             val intervals = sessions.map { it.startTime to it.endTime }
 
-            return AppUsageHourCalculator.calculate(intervals, System.currentTimeMillis())
+            return AppUsageHourCalculator.calculate(
+                intervals,
+                System.currentTimeMillis(),
+                dayStartMs = DateUtils.dayBoundsMs(date).first
+            )
         } catch (e: Exception) {
             TrackingLogStorage.add("Repo", "getHourlyUsageForAllApps EXCEPTION: ${e.message}")
             TrackingLogStorage.add("Repo", e.stackTraceToString())

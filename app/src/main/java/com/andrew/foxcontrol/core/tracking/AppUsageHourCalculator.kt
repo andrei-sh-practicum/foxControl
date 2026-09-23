@@ -30,17 +30,19 @@ object AppUsageHourCalculator {
     /**
      * Calculate hourly usage buckets from session intervals.
      *
-     * @param sessions        List of (startTime, endTime) pairs in ms (for the current day).
+     * @param sessions        List of (startTime, endTime) pairs in ms (for the day of [dayStartMs]).
      * @param now             Current time in ms (used to clip future hours).
      * @param windowStartHour Start of visible window (default 6, i.e. 06:00).
      * @param windowEndHour   End of visible window (default 22, i.e. 22:00).
+     * @param dayStartMs      00:00 of the day the buckets are built for (default: today).
      * @return List of 16 buckets for hours 6..21.
      */
     fun calculate(
         sessions: List<Pair<Long, Long>>,
         now: Long,
         windowStartHour: Int = ChartWindow.START_HOUR,
-        windowEndHour: Int = ChartWindow.END_HOUR
+        windowEndHour: Int = ChartWindow.END_HOUR,
+        dayStartMs: Long = DateUtils.todayStartMs()
     ): List<AppUsageHourBucket> {
 
         // Sort sessions by start time for consistent processing
@@ -49,7 +51,7 @@ object AppUsageHourCalculator {
         // Build 16 buckets (hours 6..21)
         val buckets = mutableListOf<AppUsageHourBucket>()
         for (h in windowStartHour until windowEndHour) {
-            val hourStartMs = DateUtils.todayHourStartMs(h)
+            val hourStartMs = DateUtils.hourStartMs(dayStartMs, h)
             val hourEndMs = hourStartMs + 3_600_000L // 1 hour in ms
             val elapsedEndMs = minOf(hourEndMs, now)
 

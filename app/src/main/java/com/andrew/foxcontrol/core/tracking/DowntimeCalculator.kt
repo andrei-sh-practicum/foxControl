@@ -42,21 +42,23 @@ object DowntimeCalculator {
     /**
      * Calculate downtime buckets from heartbeat timestamps.
      *
-     * @param heartbeatTimestamps Sorted ascending timestamps in ms (for the current day).
+     * @param heartbeatTimestamps Sorted ascending timestamps in ms (for the day of [dayStartMs]).
      * @param now                 Current time in ms (used for the "open" gap if service seems down).
      * @param windowStartHour     Start of visible window (default 6, i.e. 06:00).
      * @param windowEndHour       End of visible window (default 22, i.e. 22:00).
+     * @param dayStartMs          00:00 of the day the buckets are built for (default: today).
      * @return List of 16 buckets for hours 6..21.
      */
     fun calculate(
         heartbeatTimestamps: List<Long>,
         now: Long,
         windowStartHour: Int = ChartWindow.START_HOUR,
-        windowEndHour: Int = ChartWindow.END_HOUR
+        windowEndHour: Int = ChartWindow.END_HOUR,
+        dayStartMs: Long = DateUtils.todayStartMs()
     ): List<DowntimeHourBucket> {
 
-        val windowStartMs = DateUtils.todayHourStartMs(windowStartHour)
-        val windowEndMs = DateUtils.todayHourStartMs(windowEndHour)
+        val windowStartMs = DateUtils.hourStartMs(dayStartMs, windowStartHour)
+        val windowEndMs = DateUtils.hourStartMs(dayStartMs, windowEndHour)
 
         // Step 1: sort ascending (should already be sorted, but be safe)
         val sorted = heartbeatTimestamps.toMutableList().sorted()
@@ -95,7 +97,7 @@ object DowntimeCalculator {
         // Step 6: build 16 buckets (hours 6..21)
         val buckets = mutableListOf<DowntimeHourBucket>()
         for (h in windowStartHour until windowEndHour) {
-            val hourStartMs = DateUtils.todayHourStartMs(h)
+            val hourStartMs = DateUtils.hourStartMs(dayStartMs, h)
             val hourEndMs = hourStartMs + 3_600_000L // 1 hour in ms
             val elapsedEndMs = minOf(hourEndMs, now)
 

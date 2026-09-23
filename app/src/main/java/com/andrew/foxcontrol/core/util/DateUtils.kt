@@ -56,8 +56,15 @@ object DateUtils {
     }
 
     /** Start of [hour]:00 today. */
-    fun todayHourStartMs(hour: Int): Long {
+    fun todayHourStartMs(hour: Int): Long = hourStartMs(todayStartMs(), hour)
+
+    /**
+     * Start of [hour]:00 on the day that starts at [dayStartMs].
+     * Calendar-based, so it stays correct on DST-change days (not dayStart + hour * 3600 s).
+     */
+    fun hourStartMs(dayStartMs: Long, hour: Int): Long {
         val calendar = Calendar.getInstance()
+        calendar.timeInMillis = dayStartMs
         calendar.set(Calendar.HOUR_OF_DAY, hour)
         calendar.set(Calendar.MINUTE, 0)
         calendar.set(Calendar.SECOND, 0)
