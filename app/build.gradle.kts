@@ -96,6 +96,11 @@ android {
     }
 }
 
+// Room: export the DB schema (app/schemas/<db>/<version>.json) — base for migrations and migration tests
+ksp {
+    arg("room.schemaLocation", "$projectDir/schemas")
+}
+
 dependencies {
     // Core
     val coreKtxVersion = "1.15.0"
