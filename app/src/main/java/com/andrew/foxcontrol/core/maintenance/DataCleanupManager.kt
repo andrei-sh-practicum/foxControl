@@ -9,13 +9,17 @@ import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 import javax.inject.Inject
+import javax.inject.Singleton
 
 /**
  * Управляет очисткой устаревших данных из Room-базы.
  * Удалляет записи старше 7 суток из таблиц логов и сессий.
  * Запускается периодически через TrackingJob (каждые 12 часов)
  * или вручную через Debug-экран.
+ *
+ * Синглтон: сервис и Debug-экран должны видеть один и тот же [lastCleanupTimestamp].
  */
+@Singleton
 class DataCleanupManager @Inject constructor(
     private val usageSessionDao: UsageSessionDao,
     private val serviceHeartbeatDao: ServiceHeartbeatDao,
