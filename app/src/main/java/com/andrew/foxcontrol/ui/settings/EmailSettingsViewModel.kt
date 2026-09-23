@@ -3,8 +3,9 @@ package com.andrew.foxcontrol.ui.settings
 import androidx.compose.runtime.Immutable
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.andrew.foxcontrol.BuildConfig
+import com.andrew.foxcontrol.core.email.EmailDefaults
 import com.andrew.foxcontrol.core.email.EmailSender
+import com.andrew.foxcontrol.data.local.entity.EmailSettingsKeys
 import com.andrew.foxcontrol.data.repository.EmailRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Dispatchers
@@ -13,26 +14,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import java.util.*
 import javax.inject.Inject
-
-object BrevoDefaults {
-    const val SMTP_HOST = "smtp-relay.brevo.com"
-    const val SMTP_PORT = "587"
-    const val SMTP_LOGIN = "b84011001@smtp-brevo.com"
-    const val SMTP_APP_PASSWORD = "CHANGE_ME_IN_PRODUCTION"
-    const val FROM_EMAIL = "b84011001@smtp-brevo.com"
-    
-    fun getSmtpAppPassword(): String {
-        try {
-            val configClass = Class.forName("com.andrew.foxcontrol.BuildConfig")
-            val field = configClass.getDeclaredField("SMTP_APP_PASSWORD_DEFAULT")
-            return field.get(null) as String
-        } catch (e: Exception) {
-            return SMTP_APP_PASSWORD
-        }
-    }
-}
 
 @HiltViewModel
 class EmailSettingsViewModel @Inject constructor(
@@ -53,14 +35,14 @@ class EmailSettingsViewModel @Inject constructor(
         val settings = emailRepository.getAllSettings()
         _state.update {
             it.copy(
-                isEnabled = settings["email_enabled"] == "true",
-                smtpHost = settings["smtp_host"] ?: BrevoDefaults.SMTP_HOST,
-                smtpPort = settings["smtp_port"] ?: BrevoDefaults.SMTP_PORT,
-                smtpLogin = settings["smtp_login"] ?: BrevoDefaults.SMTP_LOGIN,
-                smtpAppPassword = settings["smtp_app_password"] ?: BrevoDefaults.getSmtpAppPassword(),
-                fromEmail = settings["from_email"] ?: BrevoDefaults.FROM_EMAIL,
-                sendTimeHour = settings["send_time_hour"]?.toIntOrNull() ?: 20,
-                sendTimeMinute = settings["send_time_minute"]?.toIntOrNull() ?: 0,
+                isEnabled = settings[EmailSettingsKeys.ENABLED] == "true",
+                smtpHost = settings[EmailSettingsKeys.SMTP_HOST] ?: EmailDefaults.SMTP_HOST,
+                smtpPort = settings[EmailSettingsKeys.SMTP_PORT] ?: EmailDefaults.SMTP_PORT,
+                smtpLogin = settings[EmailSettingsKeys.SMTP_LOGIN] ?: EmailDefaults.SMTP_LOGIN,
+                smtpAppPassword = settings[EmailSettingsKeys.SMTP_APP_PASSWORD] ?: EmailDefaults.smtpAppPassword,
+                fromEmail = settings[EmailSettingsKeys.FROM_EMAIL] ?: EmailDefaults.FROM_EMAIL,
+                sendTimeHour = settings[EmailSettingsKeys.SEND_TIME_HOUR]?.toIntOrNull() ?: EmailDefaults.SEND_TIME_HOUR,
+                sendTimeMinute = settings[EmailSettingsKeys.SEND_TIME_MINUTE]?.toIntOrNull() ?: EmailDefaults.SEND_TIME_MINUTE,
                 isLoading = false
             )
         }
@@ -101,8 +83,8 @@ class EmailSettingsViewModel @Inject constructor(
                 }
                 // Persist immediately so the time picker's "Save" button actually saves
                 viewModelScope.launch {
-                    emailRepository.saveSetting("send_time_hour", event.hour.toString())
-                    emailRepository.saveSetting("send_time_minute", event.minute.toString())
+                    emailRepository.saveSetting(EmailSettingsKeys.SEND_TIME_HOUR, event.hour.toString())
+                    emailRepository.saveSetting(EmailSettingsKeys.SEND_TIME_MINUTE, event.minute.toString())
                 }
             }
 
@@ -118,14 +100,15 @@ class EmailSettingsViewModel @Inject constructor(
 
     private fun saveSettings() {
         viewModelScope.launch {
-            emailRepository.saveSetting("email_enabled", _state.value.isEnabled.toString().lowercase())
-            emailRepository.saveSetting("smtp_host", _state.value.smtpHost)
-            emailRepository.saveSetting("smtp_port", _state.value.smtpPort)
-            emailRepository.saveSetting("smtp_login", _state.value.smtpLogin)
-            emailRepository.saveSetting("smtp_app_password", _state.value.smtpAppPassword)
-            emailRepository.saveSetting("from_email", _state.value.fromEmail)
-            emailRepository.saveSetting("send_time_hour", _state.value.sendTimeHour.toString())
-            emailRepository.saveSetting("send_time_minute", _state.value.sendTimeMinute.toString())
+            val state = _state.value
+            emailRepository.saveSetting(EmailSettingsKeys.ENABLED, state.isEnabled.toString().lowercase())
+            emailRepository.saveSetting(EmailSettingsKeys.SMTP_HOST, state.smtpHost)
+            emailRepository.saveSetting(EmailSettingsKeys.SMTP_PORT, state.smtpPort)
+            emailRepository.saveSetting(EmailSettingsKeys.SMTP_LOGIN, state.smtpLogin)
+            emailRepository.saveSetting(EmailSettingsKeys.SMTP_APP_PASSWORD, state.smtpAppPassword)
+            emailRepository.saveSetting(EmailSettingsKeys.FROM_EMAIL, state.fromEmail)
+            emailRepository.saveSetting(EmailSettingsKeys.SEND_TIME_HOUR, state.sendTimeHour.toString())
+            emailRepository.saveSetting(EmailSettingsKeys.SEND_TIME_MINUTE, state.sendTimeMinute.toString())
         }
     }
 
@@ -133,7 +116,7 @@ class EmailSettingsViewModel @Inject constructor(
         viewModelScope.launch {
             val config = EmailSender.EmailConfig(
                 smtpHost = _state.value.smtpHost,
-                smtpPort = _state.value.smtpPort.toIntOrNull() ?: 587,
+                smtpPort = _state.value.smtpPort.toIntOrNull() ?: EmailDefaults.SMTP_PORT_INT,
                 login = _state.value.smtpLogin,
                 appPassword = _state.value.smtpAppPassword,
                 fromEmail = _state.value.fromEmail
@@ -158,13 +141,13 @@ class EmailSettingsViewModel @Inject constructor(
 @Immutable
 data class EmailSettingsState(
     val isEnabled: Boolean = false,
-    val smtpHost: String = BrevoDefaults.SMTP_HOST,
-    val smtpPort: String = BrevoDefaults.SMTP_PORT,
-    val smtpLogin: String = BrevoDefaults.SMTP_LOGIN,
-    val smtpAppPassword: String = BrevoDefaults.SMTP_APP_PASSWORD,
-    val fromEmail: String = BrevoDefaults.FROM_EMAIL,
-    val sendTimeHour: Int = 20,
-    val sendTimeMinute: Int = 0,
+    val smtpHost: String = EmailDefaults.SMTP_HOST,
+    val smtpPort: String = EmailDefaults.SMTP_PORT,
+    val smtpLogin: String = EmailDefaults.SMTP_LOGIN,
+    val smtpAppPassword: String = EmailDefaults.SMTP_APP_PASSWORD_PLACEHOLDER,
+    val fromEmail: String = EmailDefaults.FROM_EMAIL,
+    val sendTimeHour: Int = EmailDefaults.SEND_TIME_HOUR,
+    val sendTimeMinute: Int = EmailDefaults.SEND_TIME_MINUTE,
     val isLoading: Boolean = true,
     val lastTestResult: EmailSender.SendResult? = null
 )

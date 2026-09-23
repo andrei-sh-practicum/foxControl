@@ -74,14 +74,7 @@ class EmailRecipientsViewModel @Inject constructor(
 
     private fun updateRecipient(recipient: EmailRecipientState) {
         viewModelScope.launch {
-            val entity = EmailRecipientEntity(
-                id = recipient.id,
-                name = recipient.name,
-                email = recipient.email,
-                isActive = recipient.isActive,
-                createdAt = recipient.createdAt
-            )
-            emailRepository.updateRecipient(entity)
+            emailRepository.updateRecipient(recipient.toEntity())
             _state.update {
                 it.copy(
                     recipients = it.recipients.map { r ->
@@ -94,14 +87,7 @@ class EmailRecipientsViewModel @Inject constructor(
 
     private fun deleteRecipient(recipient: EmailRecipientState) {
         viewModelScope.launch {
-            val entity = EmailRecipientEntity(
-                id = recipient.id,
-                name = recipient.name,
-                email = recipient.email,
-                isActive = recipient.isActive,
-                createdAt = recipient.createdAt
-            )
-            emailRepository.deleteRecipient(entity)
+            emailRepository.deleteRecipient(recipient.toEntity())
             _state.update {
                 it.copy(
                     recipients = it.recipients.filter { r -> r.id != recipient.id }
@@ -147,6 +133,14 @@ sealed class EmailRecipientsEvent {
 }
 
 private fun EmailRecipientEntity.toRecipientState() = EmailRecipientState(
+    id = id,
+    name = name,
+    email = email,
+    isActive = isActive,
+    createdAt = createdAt
+)
+
+private fun EmailRecipientState.toEntity() = EmailRecipientEntity(
     id = id,
     name = name,
     email = email,

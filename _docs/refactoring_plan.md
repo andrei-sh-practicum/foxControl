@@ -189,12 +189,12 @@
 - [x] 2.5 `IconCache` → `LruCache` (P-11).
 
 ### Этап 3 — Email-подсистема 🟡
-- [ ] 3.1 `core/email/EmailDefaults`: единый источник дефолтов, прямой `BuildConfig` без reflection (DUP-1).
-- [ ] 3.2 Везде `EmailSettingsKeys.*` вместо литералов (DUP-2).
-- [ ] 3.3 `EmailReportSender`: одна выборка `getAllSettings()` вместо цепочки `runBlocking` (P-6). **Сохранить порядок проверок и тексты `TrackingLogStorage`**: Debug-экран фильтрует лог по `[EmailReport]`.
-- [ ] 3.4 Вынести построение subject/body в чистую функцию `EmailReportBuilder.build(...)`, покрыть golden-тестом из 0.3.
-- [ ] 3.5 `EmailSender`: одно SMTP-соединение на рассылку (P-7). 🔴 Ручная проверка: тестовое письмо + отчёт на 2 адреса, один из них заведомо невалидный. Результат по каждому адресу должен совпасть с текущим.
-- [ ] 3.6 `EmailRecipientsViewModel`: `toEntity()` (DUP-11), убрать D-17.
+- [x] 3.1 `core/email/EmailDefaults`: единый источник дефолтов, прямой `BuildConfig` без reflection (DUP-1). ⚠️ В release-сборке (R8) reflection мог не находить поле и отдавать `CHANGE_ME…` — теперь там будет реальный пароль из `local.properties`; debug-сборка ведёт себя как раньше.
+- [x] 3.2 Везде `EmailSettingsKeys.*` вместо литералов (DUP-2).
+- [x] 3.3 `EmailReportSender`: одна выборка `getAllSettings()` вместо цепочки `runBlocking` (P-6). **Сохранить порядок проверок и тексты `TrackingLogStorage`**: Debug-экран фильтрует лог по `[EmailReport]`.
+- [x] 3.4 Вынести построение subject/body в чистую функцию `EmailReportBuilder.build(...)`, покрыть golden-тестом (`EmailReportBuilderTest`).
+- [x] 3.5 `EmailSender`: одно SMTP-соединение на рассылку (P-7), явный `saveChanges()` (его делал `Transport.send`), переподключение при обрыве. **Ждёт ручной проверки** 🔴 Ручная проверка: тестовое письмо + отчёт на 2 адреса, один из них заведомо невалидный. Результат по каждому адресу должен совпасть с текущим.
+- [x] 3.6 `EmailRecipientsViewModel`: `toEntity()` (DUP-11), убрать D-17.
 
 ### Этап 4 — репозиторий и алерты 🟡
 - [ ] 4.1 Убрать `runBlocking` в `getAppLimits` и объединить с `getAppLimitsSync` (P-3).

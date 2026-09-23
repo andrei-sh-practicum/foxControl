@@ -34,6 +34,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.andrew.foxcontrol.core.email.EmailDefaults
 
 @Composable
 fun EmailSettingsScreen(
@@ -177,8 +178,8 @@ private fun EmailSettingsContent(
                         value = state.smtpHost,
                         onValueChange = { onEvent(EmailSettingsEvent.OnSmtpHostChanged(it)) },
                         modifier = Modifier.fillMaxWidth(),
-                        label = { Text("smtp-relay.brevo.com") },
-                        placeholder = { Text("Например: smtp-relay.brevo.com") }
+                        label = { Text(EmailDefaults.SMTP_HOST) },
+                        placeholder = { Text("Например: ${EmailDefaults.SMTP_HOST}") }
                     )
                 }
             }
@@ -192,7 +193,7 @@ private fun EmailSettingsContent(
                         onValueChange = { onEvent(EmailSettingsEvent.OnSmtpPortChanged(it)) },
                         modifier = Modifier.fillMaxWidth(),
                         label = { Text("Порт") },
-                        placeholder = { Text("587") },
+                        placeholder = { Text(EmailDefaults.SMTP_PORT) },
                         singleLine = true
                     )
                 }
@@ -207,7 +208,7 @@ private fun EmailSettingsContent(
                         onValueChange = { onEvent(EmailSettingsEvent.OnSmtpLoginChanged(it)) },
                         modifier = Modifier.fillMaxWidth(),
                         label = { Text("Email для отправки") },
-                        placeholder = { Text("b84011001@smtp-brevo.com") }
+                        placeholder = { Text(EmailDefaults.SMTP_LOGIN) }
                     )
                 }
             }
@@ -236,7 +237,7 @@ private fun EmailSettingsContent(
                         onValueChange = { onEvent(EmailSettingsEvent.OnFromEmailChanged(it)) },
                         modifier = Modifier.fillMaxWidth(),
                         label = { Text("Email отправителя") },
-                        placeholder = { Text("b84011001@smtp-brevo.com") }
+                        placeholder = { Text(EmailDefaults.FROM_EMAIL) }
                     )
                 }
             }
