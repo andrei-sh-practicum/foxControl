@@ -16,6 +16,7 @@ import kotlinx.coroutines.launch
 import java.util.Timer
 import java.util.TimerTask
 import java.util.concurrent.ConcurrentHashMap
+import java.util.concurrent.atomic.AtomicBoolean
 
 class TrackingJob(
     private val context: Context,
@@ -24,7 +25,10 @@ class TrackingJob(
     private val emailReportSender: EmailReportSender,
     private val dataCleanupManager: DataCleanupManager
 ) {
-    private var isRunning = false
+    // Started/stopped from the main thread (service) and from the permission-monitor coroutine
+    private val running = AtomicBoolean(false)
+    val isRunning: Boolean
+        get() = running.get()
     private val usageStatsManager = context.getSystemService(Context.USAGE_STATS_SERVICE) as UsageStatsManager
     private var heartbeatTimer: Timer? = null
     private var usageStatsTimer: Timer? = null
@@ -41,11 +45,10 @@ class TrackingJob(
 
     @OptIn(DelicateCoroutinesApi::class)
     fun start() {
-        if (isRunning) {
+        if (!running.compareAndSet(false, true)) {
             TrackingLogStorage.add("Job", "TrackingJob already running, skipping start")
             return
         }
-        isRunning = true
         TrackingLogStorage.add("Service", "TrackingJob STARTED")
 
         // Heartbeat timer
@@ -110,7 +113,7 @@ class TrackingJob(
     }
 
     fun stop() {
-        isRunning = false
+        running.set(false)
         Log.d(TAG, "TrackingJob stopped")
         heartbeatTimer?.cancel()
         usageStatsTimer?.cancel()

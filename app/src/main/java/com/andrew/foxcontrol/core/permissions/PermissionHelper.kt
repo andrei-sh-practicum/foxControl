@@ -114,9 +114,19 @@ object PermissionHelper {
      * Check if critical permissions (usage stats + overlay) are still granted.
      */
     fun areCriticalPermissionsGranted(context: Context): Boolean {
-        return isUsageStatsPermissionGranted(context) &&
-               isOverlayPermissionGranted(context)
+        return criticalGranted(
+            usageStats = isUsageStatsPermissionGranted(context),
+            overlay = isOverlayPermissionGranted(context)
+        )
     }
+
+    /**
+     * Single definition of "critical": without usage stats nothing is tracked,
+     * without overlay limit alerts can't be shown. Notifications and battery
+     * optimization are recommended but not required.
+     */
+    fun criticalGranted(usageStats: Boolean, overlay: Boolean): Boolean =
+        usageStats && overlay
 
     /**
      * Check if all permissions for full functionality are granted.
@@ -134,4 +144,7 @@ data class OnboardingPermissions(
 ) {
     val allGranted: Boolean
         get() = usageStats && overlay && notifications && batteryOptimization
+
+    val criticalGranted: Boolean
+        get() = PermissionHelper.criticalGranted(usageStats, overlay)
 }

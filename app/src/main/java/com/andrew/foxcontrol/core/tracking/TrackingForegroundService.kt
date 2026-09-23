@@ -24,6 +24,7 @@ class TrackingForegroundService : Service() {
         const val CHANNEL_ID = "fox_control_tracking"
         const val NOTIFICATION_ID = 1
         const val TAG = "TrackingService"
+        private const val PERMISSION_CHECK_INTERVAL_MS = 60_000L
     }
 
     @Inject
@@ -68,15 +69,24 @@ class TrackingForegroundService : Service() {
         super.onDestroy()
         Log.d(TAG, "TrackingForegroundService destroyed")
         TrackingLogStorage.add("Service", "TrackingForegroundService destroyed")
-        trackingJob.stop()
+        // Cancel the monitor first so it can't restart the job we are about to stop
         checkPermissionJob?.cancel()
+        trackingJob.stop()
     }
 
+    /**
+     * Every minute:
+     * - logs changes of the full permission set (all 4) — diagnostics only;
+     * - critical permissions (usage stats + overlay) lost → stop TrackingJob once;
+     * - critical permissions present but TrackingJob stopped → start it again,
+     *   regardless of the non-critical ones (notifications, battery optimization).
+     */
     private fun startPermissionMonitoring() {
         checkPermissionJob = CoroutineScope(Dispatchers.IO).launch {
             while (isActive) {
                 try {
                     val status = permissionMonitor.checkPermissions()
+
                     if (!status.allGranted) {
                         Log.w(TAG, "Permissions not fully granted: missing ${status.missingCount}")
                         if (!permissionsWereLost) {
@@ -86,44 +96,28 @@ class TrackingForegroundService : Service() {
                             )
                             permissionsWereLost = true
                         }
-                        if (!status.usageStats || !status.overlay) {
-                            Log.e(TAG, "Critical permissions lost! Restarting service...")
-                            restartService()
-                        }
                     } else if (permissionsWereLost) {
                         TrackingLogStorage.add("Permission", "Permissions RESTORED")
                         permissionsWereLost = false
+                    }
+
+                    if (!status.criticalGranted) {
+                        if (trackingJob.isRunning) {
+                            Log.e(TAG, "Critical permissions lost! Stopping TrackingJob")
+                            TrackingLogStorage.add("Service", "Critical permissions lost — TrackingJob stopped")
+                            trackingJob.stop()
+                        }
+                    } else if (!trackingJob.isRunning && isActive) {
+                        trackingJob.start()
+                        Log.d(TAG, "TrackingJob restarted after critical permissions recovery")
+                        TrackingLogStorage.add("Service", "TrackingJob restarted after permission recovery")
                     }
                 } catch (e: Exception) {
                     Log.e(TAG, "Error checking permissions", e)
                     TrackingLogStorage.add("Permission", "checkPermissions ERROR: ${e.message}")
                     TrackingLogStorage.add("Permission", e.stackTraceToString())
                 }
-                delay(60_000) // Check every minute
-            }
-        }
-    }
-
-    private fun restartService() {
-        // Stop current service
-        trackingJob.stop()
-
-        // Restart after a delay
-        GlobalScope.launch {
-            delay(5000) // Wait 5 seconds
-            try {
-                val status = permissionMonitor.getCurrentStatus()
-                if (status.allGranted) {
-                    trackingJob.start()
-                    Log.d(TAG, "Service restarted successfully after permission recovery")
-                    TrackingLogStorage.add("Service", "TrackingJob restarted after permission recovery")
-                } else {
-                    Log.w(TAG, "Cannot restart service - permissions still not granted")
-                }
-            } catch (e: Exception) {
-                Log.e(TAG, "Error restarting service", e)
-                TrackingLogStorage.add("Service", "restartService ERROR: ${e.message}")
-                TrackingLogStorage.add("Service", e.stackTraceToString())
+                delay(PERMISSION_CHECK_INTERVAL_MS)
             }
         }
     }

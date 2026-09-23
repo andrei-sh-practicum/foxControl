@@ -20,6 +20,7 @@ class PermissionMonitor @Inject constructor(
         val notifications: Boolean = true,
         val batteryOptimization: Boolean = true,
         val allGranted: Boolean = true,
+        val criticalGranted: Boolean = true,
         val missingCount: Int = 0
     )
 
@@ -55,6 +56,7 @@ class PermissionMonitor @Inject constructor(
             notifications = permissions.notifications,
             batteryOptimization = permissions.batteryOptimization,
             allGranted = permissions.allGranted,
+            criticalGranted = permissions.criticalGranted,
             missingCount = PermissionHelper.getMissingPermissionCount(permissions)
         )
         return status
