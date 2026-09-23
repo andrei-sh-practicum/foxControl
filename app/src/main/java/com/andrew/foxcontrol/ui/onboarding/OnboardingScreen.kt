@@ -43,6 +43,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.compose.ui.graphics.vector.ImageVector
 
 @Composable
 fun OnboardingScreen(
@@ -223,7 +224,7 @@ private fun OnboardingContent(
 
 @Composable
 private fun PermissionCard(
-    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    icon: ImageVector,
     title: String,
     description: String,
     granted: Boolean,

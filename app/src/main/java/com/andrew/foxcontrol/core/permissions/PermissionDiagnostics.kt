@@ -3,6 +3,11 @@ package com.andrew.foxcontrol.core.permissions
 import android.content.Context
 import android.os.Build
 import android.util.Log
+import android.Manifest
+import android.app.AppOpsManager
+import android.content.pm.PackageManager
+import android.os.Process
+import android.provider.Settings
 
 /**
  * Human-readable permission report for the Debug screen and the tracking log.
@@ -23,37 +28,37 @@ object PermissionDiagnostics {
         sb.append("PACKAGE_USAGE_STATS: ${if (usageAccess) "✓ ДА" else "✗ НЕТ (нужно вручную включить)"}\n")
 
         // SYSTEM_ALERT_WINDOW
-        val canDraw = android.provider.Settings.canDrawOverlays(context)
+        val canDraw = Settings.canDrawOverlays(context)
         sb.append("SYSTEM_ALERT_WINDOW: ${if (canDraw) "✓ ДА" else "✗ НЕТ"}\n")
 
         // Foreground service permission
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
             val fgPermission = pm.checkPermission(
-                android.Manifest.permission.FOREGROUND_SERVICE,
+                Manifest.permission.FOREGROUND_SERVICE,
                 context.packageName
             )
-            sb.append("FOREGROUND_SERVICE: ${if (fgPermission == android.content.pm.PackageManager.PERMISSION_GRANTED) "✓ ДА" else "✗ НЕТ"}\n")
+            sb.append("FOREGROUND_SERVICE: ${if (fgPermission == PackageManager.PERMISSION_GRANTED) "✓ ДА" else "✗ НЕТ"}\n")
         }
 
         // Boot completed
         val hasBootPermission = pm.checkPermission(
-            android.Manifest.permission.RECEIVE_BOOT_COMPLETED,
+            Manifest.permission.RECEIVE_BOOT_COMPLETED,
             context.packageName
         )
-        sb.append("RECEIVE_BOOT_COMPLETED: ${if (hasBootPermission == android.content.pm.PackageManager.PERMISSION_GRANTED) "✓ ДА" else "✗ НЕТ"}\n")
+        sb.append("RECEIVE_BOOT_COMPLETED: ${if (hasBootPermission == PackageManager.PERMISSION_GRANTED) "✓ ДА" else "✗ НЕТ"}\n")
 
         // Notification permission (API 33+)
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             val notifPermission = pm.checkPermission(
-                android.Manifest.permission.POST_NOTIFICATIONS,
+                Manifest.permission.POST_NOTIFICATIONS,
                 context.packageName
             )
-            sb.append("POST_NOTIFICATIONS: ${if (notifPermission == android.content.pm.PackageManager.PERMISSION_GRANTED) "✓ ДА" else "✗ НЕТ"}\n")
+            sb.append("POST_NOTIFICATIONS: ${if (notifPermission == PackageManager.PERMISSION_GRANTED) "✓ ДА" else "✗ НЕТ"}\n")
         }
 
         // Battery optimization — multiple attempts for compatibility
         val pkgName = context.packageName
-        val appOps = context.getSystemService(Context.APP_OPS_SERVICE) as android.app.AppOpsManager
+        val appOps = context.getSystemService(Context.APP_OPS_SERVICE) as AppOpsManager
         val batteryOpNames = listOf(
             "android:ignore_battery_optimize",
             "OPSTR_IGNORE_BATTERY_OPTIMIZATIONS",
@@ -63,19 +68,19 @@ object PermissionDiagnostics {
         for (opName in batteryOpNames) {
             try {
                 batteryMode = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-                    appOps.unsafeCheckOpNoThrow(opName, android.os.Process.myUid(), pkgName)
+                    appOps.unsafeCheckOpNoThrow(opName, Process.myUid(), pkgName)
                 } else {
                     @Suppress("DEPRECATION")
-                    appOps.checkOpNoThrow(opName, android.os.Process.myUid(), pkgName)
+                    appOps.checkOpNoThrow(opName, Process.myUid(), pkgName)
                 }
-                if (batteryMode != android.app.AppOpsManager.MODE_ERRORED) break
+                if (batteryMode != AppOpsManager.MODE_ERRORED) break
             } catch (e: Exception) {
                 // Try next op name
             }
         }
         val batteryStatus = when {
-            batteryMode == android.app.AppOpsManager.MODE_IGNORED -> "✓ ИГНОРИРУЕТСЯ"
-            batteryMode == android.app.AppOpsManager.MODE_ERRORED -> "⚠ ОПЦИЯ НЕРАСПОЗНАНА (ROM)"
+            batteryMode == AppOpsManager.MODE_IGNORED -> "✓ ИГНОРИРУЕТСЯ"
+            batteryMode == AppOpsManager.MODE_ERRORED -> "⚠ ОПЦИЯ НЕРАСПОЗНАНА (ROM)"
             else -> "⚠ АКТИВИРОВАНА (может убивать сервис)"
         }
         sb.append("Battery optimization: $batteryStatus\n")
@@ -90,29 +95,29 @@ object PermissionDiagnostics {
     private fun isUsageStatsPermissionGranted(context: Context): Boolean {
         return try {
             // Primary: check via Settings.Secure (most reliable on all ROMs)
-            val secureValue = android.provider.Settings.Secure.getString(
+            val secureValue = Settings.Secure.getString(
                 context.contentResolver,
                 "usage_stats_accessed"
             )
             if (secureValue != null) return true
 
             // Secondary: check via AppOpsManager
-            val appOps = context.getSystemService(Context.APP_OPS_SERVICE) as android.app.AppOpsManager
+            val appOps = context.getSystemService(Context.APP_OPS_SERVICE) as AppOpsManager
             val mode = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
                 appOps.unsafeCheckOpNoThrow(
-                    android.app.AppOpsManager.OPSTR_GET_USAGE_STATS,
-                    android.os.Process.myUid(),
+                    AppOpsManager.OPSTR_GET_USAGE_STATS,
+                    Process.myUid(),
                     context.packageName
                 )
             } else {
                 @Suppress("DEPRECATION")
                 appOps.checkOpNoThrow(
-                    android.app.AppOpsManager.OPSTR_GET_USAGE_STATS,
-                    android.os.Process.myUid(),
+                    AppOpsManager.OPSTR_GET_USAGE_STATS,
+                    Process.myUid(),
                     context.packageName
                 )
             }
-            mode == android.app.AppOpsManager.MODE_ALLOWED
+            mode == AppOpsManager.MODE_ALLOWED
         } catch (e: Exception) {
             Log.e(TAG, "isUsageStatsPermissionGranted failed", e)
             false

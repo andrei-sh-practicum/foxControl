@@ -23,7 +23,7 @@ import com.andrew.foxcontrol.ui.appdetail.AppDetailScreen
 @Composable
 fun AppNavGraph(
     navController: NavHostController,
-    startDestination: String = Screen.ONBOARDING
+    startDestination: String = Screen.Onboarding.route
 ) {
     val context = LocalContext.current
     NavHost(
@@ -36,8 +36,8 @@ fun AppNavGraph(
                     // Start tracking service after onboarding completes
                     val intent = Intent(context, TrackingForegroundService::class.java)
                     ContextCompat.startForegroundService(context, intent)
-                    navController.navigate(Screen.HOME) {
-                        popUpTo(Screen.ONBOARDING) { inclusive = true }
+                    navController.navigate(Screen.Home.route) {
+                        popUpTo(Screen.Onboarding.route) { inclusive = true }
                     }
                 }
             )
@@ -46,23 +46,23 @@ fun AppNavGraph(
         composable(Screen.Home.route) {
             HomeScreen(
                 onSettingsClick = {
-                    navController.navigate(Screen.SETTINGS)
+                    navController.navigate(Screen.Settings.route)
                 },
                 onAppDetailClick = { packageName ->
-                    navController.navigate("${Screen.AppDetail.route}/$packageName")
+                    navController.navigate(Screen.AppDetail.createRoute(packageName))
                 }
             )
         }
 
         composable(
-            route = "${Screen.AppDetail.route}/{packageName}",
+            route = Screen.AppDetail.ROUTE_PATTERN,
             arguments = listOf(
-                androidx.navigation.navArgument("packageName") {
+                navArgument(Screen.AppDetail.ARG_PACKAGE_NAME) {
                     type = NavType.StringType
                 }
             )
         ) { backStackEntry ->
-            val packageName = backStackEntry.arguments?.getString("packageName") ?: return@composable
+            val packageName = backStackEntry.arguments?.getString(Screen.AppDetail.ARG_PACKAGE_NAME) ?: return@composable
             AppDetailScreen(
                 packageName = packageName,
                 onBackClick = { navController.popBackStack() }
@@ -73,7 +73,7 @@ fun AppNavGraph(
             SettingsScreen(
                 onBackClick = { navController.popBackStack() },
                 onPrivateSettingsClick = {
-                    navController.navigate(Screen.PRIVATE_SETTINGS)
+                    navController.navigate(Screen.PrivateSettings.route)
                 },
                 onDebugClick = {
                     navController.navigate(Screen.Debug.route)
@@ -85,13 +85,13 @@ fun AppNavGraph(
             PrivateSettingsScreen(
                 onBackClick = { navController.popBackStack() },
                 onEmailSettingsClick = {
-                    navController.navigate(Screen.EMAIL_SETTINGS)
+                    navController.navigate(Screen.EmailSettings.route)
                 },
                 onEmailRecipientsClick = {
-                    navController.navigate(Screen.EMAIL_RECIPIENTS)
+                    navController.navigate(Screen.EmailRecipients.route)
                 },
                 onVendorInstructionsClick = {
-                    navController.navigate(Screen.VENDOR_INSTRUCTIONS)
+                    navController.navigate(Screen.VendorInstructions.route)
                 }
             )
         }

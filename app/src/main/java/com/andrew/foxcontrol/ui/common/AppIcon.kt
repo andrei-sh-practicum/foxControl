@@ -22,6 +22,7 @@ import com.andrew.foxcontrol.core.util.IconCache
 import com.andrew.foxcontrol.core.util.toBitmap
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import android.util.Log
 
 /**
  * Loads and renders an app icon by package name.
@@ -53,7 +54,7 @@ fun AppIcon(
                 val appIcon = pm.getApplicationIcon(packageName)
                 appIcon.toBitmap()
             } catch (e: Exception) {
-                android.util.Log.e("AppIcon", "Failed to load icon for $packageName: ${e.message}")
+                Log.e("AppIcon", "Failed to load icon for $packageName: ${e.message}")
                 null
             }
         }

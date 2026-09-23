@@ -50,6 +50,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil.compose.rememberAsyncImagePainter
 import coil.request.ImageRequest
 import com.andrew.foxcontrol.R
+import kotlinx.coroutines.delay
 
 @Composable
 fun SettingsScreen(
@@ -172,7 +173,7 @@ private fun SettingsContent(
                 // Clear success/error message after 2 seconds
                 LaunchedEffect(state.message) {
                     if (state.message.isNotEmpty()) {
-                        kotlinx.coroutines.delay(2000)
+                        delay(2000)
                         onClearMessage()
                     }
                 }

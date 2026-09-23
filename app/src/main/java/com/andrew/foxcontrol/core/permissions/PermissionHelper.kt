@@ -5,6 +5,10 @@ import android.content.Intent
 import android.os.Build
 import android.os.PowerManager
 import android.provider.Settings
+import android.app.AppOpsManager
+import android.app.NotificationManager
+import android.net.Uri
+import android.os.Process
 
 object PermissionHelper {
 
@@ -13,22 +17,22 @@ object PermissionHelper {
      * This permission is not a runtime permission - user must enable it manually.
      */
     fun isUsageStatsPermissionGranted(context: Context): Boolean {
-        val appOps = context.getSystemService(Context.APP_OPS_SERVICE) as android.app.AppOpsManager
+        val appOps = context.getSystemService(Context.APP_OPS_SERVICE) as AppOpsManager
         val mode = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
             appOps.unsafeCheckOpNoThrow(
-                android.app.AppOpsManager.OPSTR_GET_USAGE_STATS,
-                android.os.Process.myUid(),
+                AppOpsManager.OPSTR_GET_USAGE_STATS,
+                Process.myUid(),
                 context.packageName
             )
         } else {
             @Suppress("Deprecation")
             appOps.checkOpNoThrow(
-                android.app.AppOpsManager.OPSTR_GET_USAGE_STATS,
-                android.os.Process.myUid(),
+                AppOpsManager.OPSTR_GET_USAGE_STATS,
+                Process.myUid(),
                 context.packageName
             )
         }
-        return mode == android.app.AppOpsManager.MODE_ALLOWED
+        return mode == AppOpsManager.MODE_ALLOWED
     }
 
     fun openUsageStatsSettings(context: Context) {
@@ -51,7 +55,7 @@ object PermissionHelper {
 
     fun openOverlayPermissionSettings(context: Context) {
         val intent = Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION).apply {
-            data = android.net.Uri.parse("package:${context.packageName}")
+            data = Uri.parse("package:${context.packageName}")
             flags = Intent.FLAG_ACTIVITY_NEW_TASK
         }
         context.startActivity(intent)
@@ -62,7 +66,7 @@ object PermissionHelper {
      */
     fun isNotificationsPermissionGranted(context: Context): Boolean {
         return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            val notificationManager = context.getSystemService(Context.NOTIFICATION_SERVICE) as android.app.NotificationManager
+            val notificationManager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
             notificationManager.areNotificationsEnabled()
         } else {
             true
@@ -92,7 +96,7 @@ object PermissionHelper {
 
     fun openBatteryOptimizationSettings(context: Context) {
         val intent = Intent(Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS).apply {
-            data = android.net.Uri.parse("package:${context.packageName}")
+            data = Uri.parse("package:${context.packageName}")
             flags = Intent.FLAG_ACTIVITY_NEW_TASK
         }
         context.startActivity(intent)

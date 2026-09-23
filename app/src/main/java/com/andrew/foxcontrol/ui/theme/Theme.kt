@@ -8,6 +8,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.SideEffect
 import androidx.compose.ui.platform.LocalView
 import androidx.core.view.WindowCompat
+import android.app.Activity
 
 private val DarkColorScheme = darkColorScheme(
     primary = md_theme_dark_primary,
@@ -35,7 +36,7 @@ fun FoxControlTheme(
     val view = LocalView.current
     if (!view.isInEditMode) {
         SideEffect {
-            WindowCompat.setDecorFitsSystemWindows((view.context as android.app.Activity).window, false)
+            WindowCompat.setDecorFitsSystemWindows((view.context as Activity).window, false)
         }
     }
 

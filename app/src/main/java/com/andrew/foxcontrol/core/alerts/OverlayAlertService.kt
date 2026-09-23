@@ -14,6 +14,7 @@ import android.view.WindowManager
 import android.widget.TextView
 import android.widget.Toast
 import com.andrew.foxcontrol.R
+import android.graphics.PixelFormat
 
 class OverlayAlertService : Service() {
 
@@ -94,7 +95,7 @@ class OverlayAlertService : Service() {
                         WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL or
                         WindowManager.LayoutParams.FLAG_SHOW_WHEN_LOCKED or
                         WindowManager.LayoutParams.FLAG_TURN_SCREEN_ON,
-                android.graphics.PixelFormat.TRANSLUCENT
+                PixelFormat.TRANSLUCENT
             )
 
             windowManager?.addView(overlayView, params)

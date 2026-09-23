@@ -17,6 +17,7 @@ import com.andrew.foxcontrol.domain.repository.UsageStatsRepository
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.*
 import javax.inject.Inject
+import android.app.Notification
 
 @AndroidEntryPoint
 class TrackingForegroundService : Service() {
@@ -135,7 +136,7 @@ class TrackingForegroundService : Service() {
         notificationManager.createNotificationChannel(channel)
     }
 
-    private fun buildNotification(): android.app.Notification {
+    private fun buildNotification(): Notification {
         return NotificationCompat.Builder(this, CHANNEL_ID)
             .setContentTitle("Fox Control")
             .setContentText("Мониторинг активен")

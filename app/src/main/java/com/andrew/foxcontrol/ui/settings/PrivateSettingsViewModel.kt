@@ -12,6 +12,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import javax.inject.Inject
+import android.util.Log
 
 @HiltViewModel
 class PrivateSettingsViewModel @Inject constructor(
@@ -94,11 +95,11 @@ class PrivateSettingsViewModel @Inject constructor(
             is PrivateSettingsEvent.OnClearTrackedApps -> {
                 viewModelScope.launch {
                     try {
-                        android.util.Log.d("PrivateSettings", "OnClearTrackedApps: START")
+                        Log.d("PrivateSettings", "OnClearTrackedApps: START")
                         usageStatsRepository.clearTrackedApps()
-                        android.util.Log.d("PrivateSettings", "OnClearTrackedApps: SUCCESS")
+                        Log.d("PrivateSettings", "OnClearTrackedApps: SUCCESS")
                     } catch (e: Exception) {
-                        android.util.Log.e("PrivateSettings", "OnClearTrackedApps: FAILED", e)
+                        Log.e("PrivateSettings", "OnClearTrackedApps: FAILED", e)
                     }
                 }
             }
@@ -160,9 +161,9 @@ class PrivateSettingsViewModel @Inject constructor(
                         val limits = _state.value.appLimits.toMutableMap()
                         limits[event.packageName] = event.limitMinutes
                         _state.update { it.copy(appLimits = limits) }
-                        android.util.Log.d("PrivateSettings", "App limit added: ${event.packageName} = ${event.limitMinutes}")
+                        Log.d("PrivateSettings", "App limit added: ${event.packageName} = ${event.limitMinutes}")
                     } catch (e: Exception) {
-                        android.util.Log.e("PrivateSettings", "Failed to add app limit", e)
+                        Log.e("PrivateSettings", "Failed to add app limit", e)
                         _state.update { it.copy(addAppLimitError = "Ошибка при добавлении: ${e.message}") }
                     }
                 }

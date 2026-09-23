@@ -7,6 +7,7 @@ import android.net.Uri
 import java.io.File
 import java.text.SimpleDateFormat
 import java.util.Locale
+import android.graphics.BitmapFactory
 
 object AvatarImageUtil {
 
@@ -58,23 +59,23 @@ object AvatarImageUtil {
                 ?: return null
 
             // First pass: decode bounds
-            val options = android.graphics.BitmapFactory.Options().apply {
+            val options = BitmapFactory.Options().apply {
                 inJustDecodeBounds = true
             }
-            android.graphics.BitmapFactory.decodeStream(inputStream, null, options)
+            BitmapFactory.decodeStream(inputStream, null, options)
             inputStream.close()
 
             // Calculate inSampleSize
             val sampleSize = calculateInSampleSize(options, reqWidth, reqHeight)
 
             // Second pass: decode with sample size
-            val options2 = android.graphics.BitmapFactory.Options().apply {
+            val options2 = BitmapFactory.Options().apply {
                 inJustDecodeBounds = false
                 inSampleSize = sampleSize
             }
             val inputStream2 = context.contentResolver.openInputStream(uri)
                 ?: return null
-            val bitmap = android.graphics.BitmapFactory.decodeStream(inputStream2, null, options2)
+            val bitmap = BitmapFactory.decodeStream(inputStream2, null, options2)
             inputStream2.close()
             bitmap
         } catch (e: Exception) {
@@ -83,7 +84,7 @@ object AvatarImageUtil {
         }
     }
 
-    private fun calculateInSampleSize(options: android.graphics.BitmapFactory.Options, reqWidth: Int, reqHeight: Int): Int {
+    private fun calculateInSampleSize(options: BitmapFactory.Options, reqWidth: Int, reqHeight: Int): Int {
         val (height, width) = options.outHeight to options.outWidth
         var sampleSize = 1
 

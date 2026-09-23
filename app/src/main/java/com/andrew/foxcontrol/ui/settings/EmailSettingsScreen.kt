@@ -35,6 +35,11 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.andrew.foxcontrol.core.email.EmailDefaults
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.material3.Switch
+import androidx.compose.material3.TextButton
+import androidx.compose.ui.text.input.PasswordVisualTransformation
 
 @Composable
 fun EmailSettingsScreen(
@@ -109,7 +114,7 @@ private fun EmailSettingsContent(
             Card {
                 Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     Text("Включить отчёты", style = MaterialTheme.typography.titleMedium)
-                    androidx.compose.material3.Switch(
+                    Switch(
                         checked = state.isEnabled,
                         onCheckedChange = { onEvent(EmailSettingsEvent.OnToggleEnabled(it)) }
                     )
@@ -120,7 +125,7 @@ private fun EmailSettingsContent(
             Card {
                 Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     Text("Время отправки отчёта", style = MaterialTheme.typography.titleMedium)
-                    androidx.compose.material3.Text(
+                    Text(
                         text = String.format("%02d:%02d", state.sendTimeHour, state.sendTimeMinute),
                         style = MaterialTheme.typography.headlineSmall,
                         color = MaterialTheme.colorScheme.primary
@@ -130,7 +135,7 @@ private fun EmailSettingsContent(
                         modifier = Modifier.fillMaxWidth()
                     ) {
                         Icon(Icons.Default.Schedule, contentDescription = null)
-                        androidx.compose.foundation.layout.Spacer(modifier = Modifier.padding(horizontal = 8.dp))
+                        Spacer(modifier = Modifier.padding(horizontal = 8.dp))
                         Text("Изменить время")
                     }
                     if (showTimePicker == 1) {
@@ -143,11 +148,11 @@ private fun EmailSettingsContent(
                             state = timePickerState,
                             modifier = Modifier.padding(top = 8.dp)
                         )
-                        androidx.compose.foundation.layout.Row(
+                        Row(
                             modifier = Modifier.fillMaxWidth(),
                             horizontalArrangement = Arrangement.spacedBy(8.dp)
                         ) {
-                            androidx.compose.material3.Button(
+                            Button(
                                 onClick = {
                                     // Read actual values from TimePickerState at save time
                                     val actualHour = timePickerState.hour
@@ -159,7 +164,7 @@ private fun EmailSettingsContent(
                             ) {
                                 Text("Сохранить")
                             }
-                            androidx.compose.material3.TextButton(
+                            TextButton(
                                 onClick = { showTimePicker = 0 },
                                 modifier = Modifier.weight(1f)
                             ) {
@@ -223,7 +228,7 @@ private fun EmailSettingsContent(
                         modifier = Modifier.fillMaxWidth(),
                         label = { Text("Пароль приложения") },
                         placeholder = { Text("Введите пароль") },
-                        visualTransformation = androidx.compose.ui.text.input.PasswordVisualTransformation()
+                        visualTransformation = PasswordVisualTransformation()
                     )
                 }
             }
