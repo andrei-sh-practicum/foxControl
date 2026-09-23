@@ -1,6 +1,13 @@
 package com.andrew.foxcontrol.ui.onboarding
 
+import android.Manifest
+import android.app.Activity
+import android.content.Context
+import android.content.ContextWrapper
+import android.os.Build
 import android.widget.Toast
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
@@ -27,6 +34,9 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.core.app.ActivityCompat
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.compose.LifecycleEventEffect
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
@@ -45,13 +55,41 @@ fun OnboardingScreen(
     val state by viewModel.state.collectAsStateWithLifecycle()
     val context = LocalContext.current
 
+    // Re-check after returning from system settings / permission dialog
+    LifecycleEventEffect(Lifecycle.Event.ON_RESUME) {
+        viewModel.onCheckPermissions()
+    }
+
+    val notificationPermissionLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.RequestPermission()
+    ) { granted ->
+        if (!granted && Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            // Denied permanently ("don't ask again" / second denial) — the dialog won't
+            // show anymore, only the app notification settings can enable it
+            val activity = context.findActivity()
+            val canAskAgain = activity != null && ActivityCompat.shouldShowRequestPermissionRationale(
+                activity, Manifest.permission.POST_NOTIFICATIONS
+            )
+            if (!canAskAgain) viewModel.openNotificationSettings()
+        }
+        viewModel.onCheckPermissions()
+    }
+
     OnboardingContent(
         state = state,
         onNavigationCompleted = onNavigationCompleted,
         onOpenUsageStats = viewModel::openUsageStatsSettings,
         onOpenOverlay = viewModel::openOverlayPermissionSettings,
+        onRequestNotifications = {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                notificationPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
+            } else {
+                viewModel.openNotificationSettings()
+            }
+        },
         onOpenBattery = viewModel::openBatteryOptimizationSettings,
-        onCheckPermissions = viewModel::onCheckPermissions
+        onCheckPermissions = viewModel::onCheckPermissions,
+        onContinueWithoutOptional = viewModel::onContinueWithoutOptional
     )
 
     // Navigate when done
@@ -68,8 +106,10 @@ private fun OnboardingContent(
     onNavigationCompleted: () -> Unit,
     onOpenUsageStats: () -> Unit,
     onOpenOverlay: () -> Unit,
+    onRequestNotifications: () -> Unit,
     onOpenBattery: () -> Unit,
-    onCheckPermissions: () -> Unit
+    onCheckPermissions: () -> Unit,
+    onContinueWithoutOptional: () -> Unit
 ) {
     Column(
         modifier = Modifier
@@ -122,11 +162,11 @@ private fun OnboardingContent(
 
                 PermissionCard(
                     icon = Icons.Default.Notifications,
-                    title = "Уведомления",
+                    title = "Уведомления (рекомендуется)",
                     description = "Нужно для показа уведомлений о статистике и предупреждениях.",
                     granted = state.permissions.notifications,
-                    onAction = null,
-                    actionLabel = null
+                    onAction = onRequestNotifications,
+                    actionLabel = "Разрешить уведомления"
                 )
 
                 PermissionCard(
@@ -147,13 +187,30 @@ private fun OnboardingContent(
                     Text("Проверить ещё раз")
                 }
 
-                Text(
-                    text = "Без этих разрешений приложение не сможет работать корректно",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.error,
-                    textAlign = TextAlign.Center,
-                    modifier = Modifier.padding(top = 8.dp)
-                )
+                if (state.permissions.criticalGranted) {
+                    OutlinedButton(
+                        onClick = onContinueWithoutOptional,
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Text("Продолжить без них")
+                    }
+
+                    Text(
+                        text = "Основные разрешения выданы. Уведомления и отключение оптимизации батареи рекомендуются для стабильной работы в фоне.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        textAlign = TextAlign.Center,
+                        modifier = Modifier.padding(top = 8.dp)
+                    )
+                } else {
+                    Text(
+                        text = "Без доступа к использованию приложений и показа поверх других приложений Fox Control не сможет работать",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.error,
+                        textAlign = TextAlign.Center,
+                        modifier = Modifier.padding(top = 8.dp)
+                    )
+                }
             }
             OnboardingStatus.Done -> {
                 CircularProgressIndicator()
@@ -223,4 +280,10 @@ private fun PermissionCard(
             }
         }
     }
+}
+
+private tailrec fun Context.findActivity(): Activity? = when (this) {
+    is Activity -> this
+    is ContextWrapper -> baseContext.findActivity()
+    else -> null
 }

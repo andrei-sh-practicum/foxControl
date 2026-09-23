@@ -38,18 +38,7 @@ class OnboardingViewModel @Inject constructor(
         // Ensure default password hash is set (12345) if not already set
         userRepository.initDefaultUser()
 
-        // Check all permissions
-        val permissions = permissionRepository.checkPermissions()
-        _state.update {
-            it.copy(
-                permissions = permissions,
-                status = if (permissions.allGranted) {
-                    OnboardingStatus.Done
-                } else {
-                    OnboardingStatus.NeedsPermissions
-                }
-            )
-        }
+        refreshPermissions()
     }
 
     fun openUsageStatsSettings() {
@@ -64,19 +53,56 @@ class OnboardingViewModel @Inject constructor(
         permissionRepository.openBatteryOptimizationSettings()
     }
 
+    fun openNotificationSettings() {
+        permissionRepository.openNotificationSettings()
+    }
+
     fun onCheckPermissions() {
         viewModelScope.launch {
+            refreshPermissions()
+        }
+    }
+
+    /**
+     * "Продолжить без них": critical permissions are granted, the user skips the
+     * recommended ones. Remembered so the onboarding isn't shown on every launch.
+     */
+    fun onContinueWithoutOptional() {
+        viewModelScope.launch {
             val permissions = permissionRepository.checkPermissions()
-            _state.update {
-                it.copy(
-                    permissions = permissions,
-                    status = if (permissions.allGranted) {
-                        OnboardingStatus.Done
-                    } else {
-                        OnboardingStatus.NeedsPermissions
-                    }
-                )
+            if (!permissions.criticalGranted) {
+                _state.update { it.copy(permissions = permissions, status = OnboardingStatus.NeedsPermissions) }
+                return@launch
             }
+            userRepository.completeOnboarding()
+            _state.update { it.copy(permissions = permissions, status = OnboardingStatus.Done) }
+        }
+    }
+
+    /**
+     * Onboarding is done when:
+     * - all permissions are granted, or
+     * - critical permissions (usage stats + overlay) are granted and the user
+     *   has already chosen to continue without the recommended ones.
+     * Missing critical permissions always bring the onboarding back.
+     */
+    private suspend fun refreshPermissions() {
+        val permissions = permissionRepository.checkPermissions()
+        val done = when {
+            permissions.allGranted -> {
+                userRepository.completeOnboarding()
+                true
+            }
+            permissions.criticalGranted -> userRepository.isOnboardingCompleted()
+            else -> false
+        }
+        _state.update {
+            // Don't flip back from Done: navigation away is already in progress
+            if (it.status == OnboardingStatus.Done) it.copy(permissions = permissions)
+            else it.copy(
+                permissions = permissions,
+                status = if (done) OnboardingStatus.Done else OnboardingStatus.NeedsPermissions
+            )
         }
     }
 }

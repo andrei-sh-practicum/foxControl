@@ -70,6 +70,18 @@ object PermissionHelper {
     }
 
     /**
+     * App notification settings — fallback when POST_NOTIFICATIONS was denied
+     * permanently and the runtime dialog is no longer shown.
+     */
+    fun openNotificationSettings(context: Context) {
+        val intent = Intent(Settings.ACTION_APP_NOTIFICATION_SETTINGS).apply {
+            putExtra(Settings.EXTRA_APP_PACKAGE, context.packageName)
+            flags = Intent.FLAG_ACTIVITY_NEW_TASK
+        }
+        context.startActivity(intent)
+    }
+
+    /**
      * Check if battery optimization is disabled for our app.
      */
     fun isBatteryOptimizationDisabled(context: Context): Boolean {

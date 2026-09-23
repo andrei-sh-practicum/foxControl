@@ -25,6 +25,10 @@ class PermissionRepository @Inject constructor(
         PermissionHelper.openBatteryOptimizationSettings(context)
     }
 
+    fun openNotificationSettings() {
+        PermissionHelper.openNotificationSettings(context)
+    }
+
     fun isNotificationsPermissionGranted(): Boolean {
         return PermissionHelper.isNotificationsPermissionGranted(context)
     }
