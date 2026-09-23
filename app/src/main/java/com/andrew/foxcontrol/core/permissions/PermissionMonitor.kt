@@ -14,15 +14,16 @@ class PermissionMonitor @Inject constructor(
         const val TAG = "PermissionMonitor"
     }
 
-    data class PermissionStatus(
-        val usageStats: Boolean = true,
-        val overlay: Boolean = true,
-        val notifications: Boolean = true,
-        val batteryOptimization: Boolean = true,
-        val allGranted: Boolean = true,
-        val criticalGranted: Boolean = true,
-        val missingCount: Int = 0
-    )
+    /** Snapshot of the required permissions; everything is derived from [permissions]. */
+    data class PermissionStatus(val permissions: OnboardingPermissions) {
+        val usageStats: Boolean get() = permissions.usageStats
+        val overlay: Boolean get() = permissions.overlay
+        val notifications: Boolean get() = permissions.notifications
+        val batteryOptimization: Boolean get() = permissions.batteryOptimization
+        val allGranted: Boolean get() = permissions.allGranted
+        val criticalGranted: Boolean get() = permissions.criticalGranted
+        val missingCount: Int get() = PermissionHelper.getMissingPermissionCount(permissions)
+    }
 
     private var lastStatus: PermissionStatus? = null
 
@@ -38,17 +39,6 @@ class PermissionMonitor @Inject constructor(
         return status
     }
 
-    fun getCurrentStatus(): PermissionStatus {
-        val permissions = PermissionHelper.getRequiredPermissions(context)
-        val status = PermissionStatus(
-            usageStats = permissions.usageStats,
-            overlay = permissions.overlay,
-            notifications = permissions.notifications,
-            batteryOptimization = permissions.batteryOptimization,
-            allGranted = permissions.allGranted,
-            criticalGranted = permissions.criticalGranted,
-            missingCount = PermissionHelper.getMissingPermissionCount(permissions)
-        )
-        return status
-    }
+    fun getCurrentStatus(): PermissionStatus =
+        PermissionStatus(PermissionHelper.getRequiredPermissions(context))
 }

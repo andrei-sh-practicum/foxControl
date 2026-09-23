@@ -11,6 +11,7 @@ import androidx.core.app.NotificationCompat
 import com.andrew.foxcontrol.core.alerts.AlertManager
 import com.andrew.foxcontrol.core.email.EmailReportSender
 import com.andrew.foxcontrol.core.maintenance.DataCleanupManager
+import com.andrew.foxcontrol.core.permissions.PermissionDiagnostics
 import com.andrew.foxcontrol.core.permissions.PermissionMonitor
 import com.andrew.foxcontrol.domain.repository.UsageStatsRepository
 import dagger.hilt.android.AndroidEntryPoint
@@ -52,7 +53,7 @@ class TrackingForegroundService : Service() {
         super.onCreate()
         trackingJob = TrackingJob(this, usageStatsRepository, alertManager, emailReportSender, dataCleanupManager)
         TrackingLogStorage.add("Service", "TrackingForegroundService created")
-        TrackingLogStorage.add("Permission", "Permissions at start:\n${TrackingLogStorage.getPermissionInfo(this)}")
+        TrackingLogStorage.add("Permission", "Permissions at start:\n${PermissionDiagnostics.getPermissionInfo(this)}")
         createNotificationChannel()
         trackingJob.start()
         startPermissionMonitoring()
@@ -92,7 +93,7 @@ class TrackingForegroundService : Service() {
                         if (!permissionsWereLost) {
                             TrackingLogStorage.add(
                                 "Permission",
-                                "Permissions LOST (missing ${status.missingCount}):\n${TrackingLogStorage.getPermissionInfo(this@TrackingForegroundService)}"
+                                "Permissions LOST (missing ${status.missingCount}):\n${PermissionDiagnostics.getPermissionInfo(this@TrackingForegroundService)}"
                             )
                             permissionsWereLost = true
                         }

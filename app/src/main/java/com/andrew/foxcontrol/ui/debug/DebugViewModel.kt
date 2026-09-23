@@ -2,6 +2,7 @@ package com.andrew.foxcontrol.ui.debug
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.andrew.foxcontrol.core.permissions.PermissionDiagnostics
 import com.andrew.foxcontrol.core.tracking.DowntimeHourBucket
 import com.andrew.foxcontrol.core.tracking.TrackingLogStorage
 import com.andrew.foxcontrol.domain.repository.UsageStatsRepository
@@ -107,7 +108,7 @@ class DebugViewModel @Inject constructor(
     }
 
     fun getPermissionInfo(context: android.content.Context): String {
-        return TrackingLogStorage.getPermissionInfo(context)
+        return PermissionDiagnostics.getPermissionInfo(context)
     }
 
     // --- Cleanup info ---

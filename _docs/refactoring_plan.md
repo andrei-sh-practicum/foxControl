@@ -207,12 +207,12 @@
 - [x] 4.8 Расширить интерфейс и перевести потребителей на него (A-1, A-2). Проверить Hilt-граф: `RepositoryModule` биндит интерфейс, а `Impl` остаётся `@Singleton` → экземпляр один.
 
 ### Этап 5 — трекинг и сервис 🟡/🔴
-- [ ] 5.1 `TrackingJob.isRunning` → `AtomicBoolean` (T-3).
-- [ ] 5.2 `TrackingJob`: приватный `launchLogged(tag) {}` вместо четырёх копий try/catch (T-4). GlobalScope **сохраняется**.
-- [ ] 5.3 `queryUsageStats(3, …)` → `UsageStatsManager.INTERVAL_YEARLY` с исправленным комментарием. **Значение не менять** (см. [B-7](bugs_plan.md#b-7-queryusagestats-с-interval_yearly)).
-- [ ] 5.4 Унифицировать логирование: хелпер `logE(tag, msg, e)`, который пишет и в `Log`, и в `TrackingLogStorage`. Набор тегов и тексты строк сохранить: от них зависят `getLogStats()` и Debug-экран.
-- [ ] 5.5 `TrackingLogStorage.getPermissionInfo` → `core/permissions/PermissionDiagnostics` (DUP-9). Тело перенести **1:1**.
-- [ ] 5.6 `PermissionStatus` на базе `OnboardingPermissions` (DUP-10).
+- [x] 5.1 `TrackingJob.isRunning` → `AtomicBoolean` (T-3) — сделано вместе с B-5.
+- [x] 5.2 `TrackingJob`: `scheduleTimer()`, `runLogged()` / `launchLogged()` вместо четырёх копий Timer + try/catch (T-4). GlobalScope **сохраняется**.
+- [x] 5.3 `queryUsageStats(3, …)` → `UsageStatsManager.INTERVAL_YEARLY` с исправленным комментарием. **Значение не менять** (см. [B-7](bugs_plan.md#b-7-queryusagestats-с-interval_yearly)).
+- [x] 5.4 Логирование ошибок в `TrackingJob` — через `logError(tag, what, e)` с теми же тегами и текстами. Места, где писалось только в `Log` (например, `checkAlerts`), оставлены как есть, чтобы не менять содержимое Debug-лога.
+- [x] 5.5 `TrackingLogStorage.getPermissionInfo` → `core/permissions/PermissionDiagnostics` (DUP-9). Тело перенести **1:1**.
+- [x] 5.6 `PermissionStatus` на базе `OnboardingPermissions` (DUP-10).
 
 **Проверка 🔴:** 30+ минут работы на устройстве. В Debug-экране heartbeat идёт без дыр, сессии пишутся, лимит на приложение срабатывает (overlay + уведомление, один раз за день).
 

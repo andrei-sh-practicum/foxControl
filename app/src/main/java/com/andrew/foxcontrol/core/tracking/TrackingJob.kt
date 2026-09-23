@@ -1,6 +1,5 @@
 package com.andrew.foxcontrol.core.tracking
 
-import android.app.usage.UsageStats
 import android.app.usage.UsageStatsManager
 import android.content.Context
 import android.util.Log
@@ -8,7 +7,6 @@ import com.andrew.foxcontrol.core.alerts.AlertManager
 import com.andrew.foxcontrol.core.email.EmailReportSender
 import com.andrew.foxcontrol.core.maintenance.DataCleanupManager
 import com.andrew.foxcontrol.core.util.AppLabelResolver
-import com.andrew.foxcontrol.core.tracking.TrackingLogStorage.add
 import com.andrew.foxcontrol.domain.repository.UsageStatsRepository
 import kotlinx.coroutines.DelicateCoroutinesApi
 import kotlinx.coroutines.GlobalScope
@@ -41,7 +39,6 @@ class TrackingJob(
     @Volatile
     private var lastPollWasEmpty = false
 
-    @OptIn(DelicateCoroutinesApi::class)
     fun start() {
         if (!running.compareAndSet(false, true)) {
             TrackingLogStorage.add("Job", "TrackingJob already running, skipping start")
@@ -49,64 +46,21 @@ class TrackingJob(
         }
         TrackingLogStorage.add("Service", "TrackingJob STARTED")
 
-        // Heartbeat timer
-        heartbeatTimer = Timer("heartbeat").apply {
-            scheduleAtFixedRate(object : TimerTask() {
-                override fun run() {
-                    GlobalScope.launch {
-                        try {
-                            usageStatsRepository.recordHeartbeat()
-                        } catch (e: Exception) {
-                            TrackingLogStorage.add("Repo", "Heartbeat ERROR: ${e.message}")
-                            TrackingLogStorage.add("Repo", e.stackTraceToString())
-                        }
-                    }
-                }
-            }, 0, HEARTBEAT_INTERVAL_MS)
+        heartbeatTimer = scheduleTimer("heartbeat", HEARTBEAT_INTERVAL_MS) {
+            launchLogged("Repo", "Heartbeat") { usageStatsRepository.recordHeartbeat() }
         }
 
-        // Usage stats polling timer
-        usageStatsTimer = Timer("usage_poll").apply {
-            scheduleAtFixedRate(object : TimerTask() {
-                override fun run() {
-                    try {
-                        pollUsageStats()
-                    } catch (e: Exception) {
-                        TrackingLogStorage.add("Job", "pollUsageStats ERROR: ${e.message}")
-                        TrackingLogStorage.add("Job", e.stackTraceToString())
-                    }
-                }
-            }, 0, USAGE_STATS_POLL_INTERVAL_MS)
+        usageStatsTimer = scheduleTimer("usage_poll", USAGE_STATS_POLL_INTERVAL_MS) {
+            runLogged("Job", "pollUsageStats") { pollUsageStats() }
         }
 
-        // Email report check timer
-        emailReportTimer = Timer("email_report").apply {
-            scheduleAtFixedRate(object : TimerTask() {
-                override fun run() {
-                    try {
-                        emailReportSender.checkAndSendIfDue()
-                    } catch (e: Exception) {
-                        TrackingLogStorage.add("EmailReport", "checkAndSendIfDue ERROR: ${e.message}")
-                        TrackingLogStorage.add("EmailReport", e.stackTraceToString())
-                    }
-                }
-            }, 0, EMAIL_REPORT_CHECK_INTERVAL_MS)
+        emailReportTimer = scheduleTimer("email_report", EMAIL_REPORT_CHECK_INTERVAL_MS) {
+            runLogged("EmailReport", "checkAndSendIfDue") { emailReportSender.checkAndSendIfDue() }
         }
 
-        // Data cleanup timer (garbage collector, every 12 hours)
-        cleanupTimer = Timer("data_cleanup").apply {
-            scheduleAtFixedRate(object : TimerTask() {
-                override fun run() {
-                    GlobalScope.launch {
-                        try {
-                            dataCleanupManager.purgeOldData()
-                        } catch (e: Exception) {
-                            TrackingLogStorage.add("Cleanup", "purgeOldData ERROR: ${e.message}")
-                            TrackingLogStorage.add("Cleanup", e.stackTraceToString())
-                        }
-                    }
-                }
-            }, 0, CLEANUP_INTERVAL_MS)
+        // Garbage collector for old DB rows
+        cleanupTimer = scheduleTimer("data_cleanup", CLEANUP_INTERVAL_MS) {
+            launchLogged("Cleanup", "purgeOldData") { dataCleanupManager.purgeOldData() }
         }
     }
 
@@ -119,15 +73,15 @@ class TrackingJob(
         cleanupTimer?.cancel()
     }
 
-    @OptIn(DelicateCoroutinesApi::class)
     private fun pollUsageStats() {
         val endTime = System.currentTimeMillis()
         val startTime = endTime - USAGE_STATS_POLL_INTERVAL_MS
 
 
-        // Use queryUsageStats for per-package usage time
+        // Per-package foreground time. NB: INTERVAL_YEARLY (= 3) is what has always been used
+        // here, despite an old "INTERVAL_DAY" comment — see bugs_plan.md, B-7 (postponed).
         val usageStatsList = usageStatsManager.queryUsageStats(
-            3, // INTERVAL_DAY
+            UsageStatsManager.INTERVAL_YEARLY,
             startTime,
             endTime
         )
@@ -168,20 +122,15 @@ class TrackingJob(
                 val appName = getAppName(packageName)
 
                 // Save session to Room
-                GlobalScope.launch {
-                    try {
-                        usageStatsRepository.trackUsageSession(
-                            packageName = packageName,
-                            appName = appName,
-                            startTime = endTime - deltaMs,
-                            endTime = endTime,
-                            durationMs = deltaMs,
-                            isEntertainment = false
-                        )
-                    } catch (e: Exception) {
-                        TrackingLogStorage.add("Repo", "trackUsageSession ERROR: ${e.message}")
-                        TrackingLogStorage.add("Repo", e.stackTraceToString())
-                    }
+                launchLogged("Repo", "trackUsageSession") {
+                    usageStatsRepository.trackUsageSession(
+                        packageName = packageName,
+                        appName = appName,
+                        startTime = endTime - deltaMs,
+                        endTime = endTime,
+                        durationMs = deltaMs,
+                        isEntertainment = false
+                    )
                 }
             }
         }
@@ -203,6 +152,39 @@ class TrackingJob(
 
     private fun getAppName(packageName: String): String =
         AppLabelResolver.resolve(context.packageManager, packageName)
+
+    private fun scheduleTimer(name: String, periodMs: Long, task: () -> Unit): Timer =
+        Timer(name).apply {
+            scheduleAtFixedRate(object : TimerTask() {
+                override fun run() = task()
+            }, 0, periodMs)
+        }
+
+    /** Runs [block] on the timer thread; errors go to the Debug log as "<what> ERROR: …" + stack trace. */
+    private inline fun runLogged(tag: String, what: String, block: () -> Unit) {
+        try {
+            block()
+        } catch (e: Exception) {
+            logError(tag, what, e)
+        }
+    }
+
+    /** Fire-and-forget coroutine (GlobalScope on purpose, see CLAUDE.md) with the same error logging. */
+    @OptIn(DelicateCoroutinesApi::class)
+    private fun launchLogged(tag: String, what: String, block: suspend () -> Unit) {
+        GlobalScope.launch {
+            try {
+                block()
+            } catch (e: Exception) {
+                logError(tag, what, e)
+            }
+        }
+    }
+
+    private fun logError(tag: String, what: String, e: Exception) {
+        TrackingLogStorage.add(tag, "$what ERROR: ${e.message}")
+        TrackingLogStorage.add(tag, e.stackTraceToString())
+    }
 
     companion object {
         const val TAG = "TrackingJob"
