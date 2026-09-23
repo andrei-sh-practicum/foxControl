@@ -217,17 +217,17 @@
 **Проверка 🔴:** 30+ минут работы на устройстве. В Debug-экране heartbeat идёт без дыр, сессии пишутся, лимит на приложение срабатывает (overlay + уведомление, один раз за день).
 
 ### Этап 6 — UI 🟢/🟡
-- [ ] 6.1 `DebugScreen`: `remember` (U-1), `LaunchedEffect` (U-2), вынос I/O в ViewModel (P-8), `formatAgo` (DUP-14).
-- [ ] 6.2 `HomeScreen`: `UsageSummary`/`EmptyState` (DUP-12), `entries`, `key` (U-5).
-- [ ] 6.3 `PrivateSettingsScreen`: разбиение на файлы, `PasswordTextField`, `AppPickerDropdown` (U-4, DUP-13).
-- [ ] 6.4 `Divider` → `HorizontalDivider` (U-7), навигация (U-10).
-- [ ] 6.5 *(после подтверждения)* `verticalScroll` (U-3), цвет сообщения (U-8).
+- [x] 6.1 `DebugScreen`: `remember` (U-1), `LaunchedEffect` (U-2), вынос I/O в ViewModel (P-8), `formatAgo` (DUP-14).
+- [x] 6.2 `HomeScreen`: `UsageSummary`/`EmptyState` (DUP-12), `entries`, `key` (U-5).
+- [x] 6.3 `PrivateSettingsScreen`: разбиение на файлы (`PrivateSettingsGate.kt`, `PrivateSettingsDialogs.kt`, `PrivateSettingsComponents.kt`), `PasswordTextField`, `AppPickerDropdown` (U-4, DUP-13).
+- [x] 6.4 `Divider` → `HorizontalDivider` (U-7), навигация (U-10), FQN → импорты по всему приложению (U-6).
+- [ ] 6.5 ⏸ **ждёт подтверждения владельца** — `verticalScroll` (U-3), цвет сообщения (U-8).
 - [ ] 6.6 *(опционально)* перенос строк в `strings.xml` (U-9).
 
 ### Этап 7 — Build и документация 🟢
-- [ ] 7.1 Room: `ksp { arg("room.schemaLocation", "$projectDir/schemas") }` при `exportSchema = true`; закоммитить `schemas/…/4.json`. Это база для будущих миграций (например, если B-1 или B-15 потребуют изменений схемы).
-- [ ] 7.2 Version catalog (`gradle/libs.versions.toml`) вместо разбросанных версий; выровнять compose-артефакты через BOM (сейчас `ui 1.7.8`, `material-icons-extended 1.7.6`, BOM `2024.09.00` только в `androidTest`). 🟡 не поднимать версии, только перенос.
-- [ ] 7.3 `proguard-rules.pro`: правило `-keep class * implements androidx.room.Entity` бессмысленно (`@Entity` — аннотация, а не интерфейс). Добавить keep для Jakarta Mail/Angus (`jakarta.mail.**`, `org.eclipse.angus.**`, SPI-провайдеры в `META-INF`). 🔴 проверить release-сборку отправкой тестового письма, если release вообще используется.
+- [x] 7.1 Room: `ksp { arg("room.schemaLocation", "$projectDir/schemas") }` при `exportSchema = true`; закоммитить `schemas/…/4.json`. Это база для будущих миграций (например, если B-1 или B-15 потребуют изменений схемы).
+- [x] 7.2 Version catalog (`gradle/libs.versions.toml`), перенос 1:1 без смены версий; деревья зависимостей debug/release/unitTest сверены — идентичны. BOM не выравнивался (это смена версий). Координата `androidx.compose:bom` в androidTest, вероятно, ошибочна (правильная — `compose-bom`), оставлена как была — см. 0.2.
+- [x] 7.3 `proguard-rules.pro`: бессмысленные правила удалены, добавлен keep для Jakarta Mail/Angus. Проверено: без правил `SMTPTransport` отсутствовал в release-dex (отправка в release не работала бы), с правилами — на месте. 🔴 Тестовое письмо из release-сборки — вручную, если release используется.
 - [x] 7.4 ~~Обновить `CLAUDE.md`~~ (сделано 2026-09-23): БД версии **4**, а не 3; `SendReportWorker`, `ReportAlarmReceiver`, `EmailScheduler`, WorkManager **не существуют** (отчёт шлёт `EmailReportSender` по таймеру из `TrackingJob`); cooldown алертов — раз в сутки на пакет через `alert_logs`, а не 1 минута; добавить `core/maintenance`, `core/util`.
 
 ---

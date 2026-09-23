@@ -1,0 +1,66 @@
+# Dependency versions for Fox Control (moved 1:1 from build.gradle.kts, stage 7.2)
+
+[versions]
+agp = "8.7.3"
+kotlin = "2.1.0"
+ksp = "2.1.0-1.0.29"
+hilt = "2.55"
+coreKtx = "1.15.0"
+compose = "1.7.8"
+composeMaterial3 = "1.3.1"
+composeMaterialIcons = "1.7.6"
+composeBom = "2024.09.00"
+activityCompose = "1.9.3"
+lifecycle = "2.8.7"
+navigation = "2.8.5"
+room = "2.6.1"
+hiltNavigationCompose = "1.2.0"
+datastore = "1.1.1"
+coil = "2.7.0"
+jakartaMail = "2.1.3"
+angusMail = "2.0.3"
+junit = "4.13.2"
+mockk = "1.13.16"
+androidxTestJunit = "1.2.1"
+espresso = "3.6.1"
+
+[libraries]
+androidx-core-ktx = { module = "androidx.core:core-ktx", version.ref = "coreKtx" }
+compose-ui = { module = "androidx.compose.ui:ui", version.ref = "compose" }
+compose-ui-graphics = { module = "androidx.compose.ui:ui-graphics", version.ref = "compose" }
+compose-ui-tooling-preview = { module = "androidx.compose.ui:ui-tooling-preview", version.ref = "compose" }
+compose-ui-text = { module = "androidx.compose.ui:ui-text", version.ref = "compose" }
+compose-foundation = { module = "androidx.compose.foundation:foundation", version.ref = "compose" }
+compose-material3 = { module = "androidx.compose.material3:material3", version.ref = "composeMaterial3" }
+compose-material-icons-extended = { module = "androidx.compose.material:material-icons-extended", version.ref = "composeMaterialIcons" }
+# versions aligned by the compose-ui dependency constraints
+compose-ui-tooling = { module = "androidx.compose.ui:ui-tooling" }
+compose-ui-test-manifest = { module = "androidx.compose.ui:ui-test-manifest" }
+compose-ui-test-junit4 = { module = "androidx.compose.ui:ui-test-junit4", version.ref = "compose" }
+# NB: kept 1:1 from the old build file; the real BOM is androidx.compose:compose-bom (androidTest only, see refactoring_plan 0.2)
+compose-bom = { module = "androidx.compose:bom", version.ref = "composeBom" }
+androidx-activity-compose = { module = "androidx.activity:activity-compose", version.ref = "activityCompose" }
+androidx-lifecycle-viewmodel-compose = { module = "androidx.lifecycle:lifecycle-viewmodel-compose", version.ref = "lifecycle" }
+androidx-lifecycle-runtime-compose = { module = "androidx.lifecycle:lifecycle-runtime-compose", version.ref = "lifecycle" }
+androidx-navigation-compose = { module = "androidx.navigation:navigation-compose", version.ref = "navigation" }
+room-runtime = { module = "androidx.room:room-runtime", version.ref = "room" }
+room-ktx = { module = "androidx.room:room-ktx", version.ref = "room" }
+room-compiler = { module = "androidx.room:room-compiler", version.ref = "room" }
+hilt-android = { module = "com.google.dagger:hilt-android", version.ref = "hilt" }
+hilt-compiler = { module = "com.google.dagger:hilt-compiler", version.ref = "hilt" }
+androidx-hilt-navigation-compose = { module = "androidx.hilt:hilt-navigation-compose", version.ref = "hiltNavigationCompose" }
+androidx-datastore-preferences = { module = "androidx.datastore:datastore-preferences", version.ref = "datastore" }
+coil-compose = { module = "io.coil-kt:coil-compose", version.ref = "coil" }
+jakarta-mail-api = { module = "jakarta.mail:jakarta.mail-api", version.ref = "jakartaMail" }
+angus-mail = { module = "org.eclipse.angus:angus-mail", version.ref = "angusMail" }
+junit = { module = "junit:junit", version.ref = "junit" }
+mockk = { module = "io.mockk:mockk", version.ref = "mockk" }
+androidx-test-junit = { module = "androidx.test.ext:junit", version.ref = "androidxTestJunit" }
+androidx-test-espresso = { module = "androidx.test.espresso:espresso-core", version.ref = "espresso" }
+
+[plugins]
+android-application = { id = "com.android.application", version.ref = "agp" }
+kotlin-android = { id = "org.jetbrains.kotlin.android", version.ref = "kotlin" }
+kotlin-compose = { id = "org.jetbrains.kotlin.plugin.compose", version.ref = "kotlin" }
+ksp = { id = "com.google.devtools.ksp", version.ref = "ksp" }
+hilt = { id = "com.google.dagger.hilt.android", version.ref = "hilt" }

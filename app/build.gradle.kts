@@ -1,9 +1,9 @@
 plugins {
-    id("com.android.application")
-    id("org.jetbrains.kotlin.android")
-    id("org.jetbrains.kotlin.plugin.compose")
-    id("com.google.devtools.ksp")
-    id("com.google.dagger.hilt.android")
+    alias(libs.plugins.android.application)
+    alias(libs.plugins.kotlin.android)
+    alias(libs.plugins.kotlin.compose)
+    alias(libs.plugins.ksp)
+    alias(libs.plugins.hilt)
 }
 
 import java.io.FileInputStream
@@ -102,56 +102,55 @@ ksp {
 }
 
 dependencies {
+    // Versions: gradle/libs.versions.toml
+
     // Core
-    val coreKtxVersion = "1.15.0"
-    implementation("androidx.core:core-ktx:$coreKtxVersion")
+    implementation(libs.androidx.core.ktx)
 
     // Compose
-    implementation("androidx.compose.ui:ui:1.7.8")
-    implementation("androidx.compose.ui:ui-graphics:1.7.8")
-    implementation("androidx.compose.ui:ui-tooling-preview:1.7.8")
-    implementation("androidx.compose.ui:ui-text:1.7.8")
-    implementation("androidx.compose.material3:material3:1.3.1")
-    implementation("androidx.compose.foundation:foundation:1.7.8")
-    implementation("androidx.activity:activity-compose:1.9.3")
-    implementation("androidx.lifecycle:lifecycle-viewmodel-compose:2.8.7")
-    implementation("androidx.lifecycle:lifecycle-runtime-compose:2.8.7")
+    implementation(libs.compose.ui)
+    implementation(libs.compose.ui.graphics)
+    implementation(libs.compose.ui.tooling.preview)
+    implementation(libs.compose.ui.text)
+    implementation(libs.compose.material3)
+    implementation(libs.compose.foundation)
+    implementation(libs.androidx.activity.compose)
+    implementation(libs.androidx.lifecycle.viewmodel.compose)
+    implementation(libs.androidx.lifecycle.runtime.compose)
 
     // Navigation Compose
-    val navigationVersion = "2.8.5"
-    implementation("androidx.navigation:navigation-compose:$navigationVersion")
+    implementation(libs.androidx.navigation.compose)
 
     // Room (KSP first so DAO is generated before Hilt processes it)
-    val roomVersion = "2.6.1"
-    implementation("androidx.room:room-runtime:$roomVersion")
-    implementation("androidx.room:room-ktx:$roomVersion")
-    ksp("androidx.room:room-compiler:$roomVersion")
+    implementation(libs.room.runtime)
+    implementation(libs.room.ktx)
+    ksp(libs.room.compiler)
 
     // Hilt (KSP after Room)
-    implementation("com.google.dagger:hilt-android:2.55")
-    ksp("com.google.dagger:hilt-compiler:2.55")
-    implementation("androidx.hilt:hilt-navigation-compose:1.2.0")
+    implementation(libs.hilt.android)
+    ksp(libs.hilt.compiler)
+    implementation(libs.androidx.hilt.navigation.compose)
 
     // DataStore (Preferences)
-    implementation("androidx.datastore:datastore-preferences:1.1.1")
+    implementation(libs.androidx.datastore.preferences)
 
     // Material Icons Extended
-    implementation("androidx.compose.material:material-icons-extended:1.7.6")
+    implementation(libs.compose.material.icons.extended)
 
     // Coil (image loading for avatars)
-    implementation("io.coil-kt:coil-compose:2.7.0")
+    implementation(libs.coil.compose)
 
     // Jakarta Mail (email sending)
-    implementation("jakarta.mail:jakarta.mail-api:2.1.3")
-    implementation("org.eclipse.angus:angus-mail:2.0.3")
+    implementation(libs.jakarta.mail.api)
+    implementation(libs.angus.mail)
 
     // Testing
-    testImplementation("junit:junit:4.13.2")
-    testImplementation("io.mockk:mockk:1.13.16")
-    androidTestImplementation("androidx.test.ext:junit:1.2.1")
-    androidTestImplementation("androidx.test.espresso:espresso-core:3.6.1")
-    androidTestImplementation(platform("androidx.compose:bom:2024.09.00"))
-    androidTestImplementation("androidx.compose.ui:ui-test-junit4:1.7.8")
-    debugImplementation("androidx.compose.ui:ui-tooling")
-    debugImplementation("androidx.compose.ui:ui-test-manifest")
+    testImplementation(libs.junit)
+    testImplementation(libs.mockk)
+    androidTestImplementation(libs.androidx.test.junit)
+    androidTestImplementation(libs.androidx.test.espresso)
+    androidTestImplementation(platform(libs.compose.bom))
+    androidTestImplementation(libs.compose.ui.test.junit4)
+    debugImplementation(libs.compose.ui.tooling)
+    debugImplementation(libs.compose.ui.test.manifest)
 }
