@@ -27,11 +27,15 @@ android {
         versionCode = 45
         versionName = "1.5.1"
 
+        // SMTP defaults come from local.properties (not in git), see _docs/build_secrets.md
+        val smtpLogin = localProperties.getProperty("SMTP_LOGIN", "")
         buildConfigField(
             "String",
             "SMTP_APP_PASSWORD_DEFAULT",
             "\"${localProperties.getProperty("SMTP_APP_PASSWORD", "CHANGE_ME_IN_PRODUCTION")}\""
         )
+        buildConfigField("String", "SMTP_LOGIN_DEFAULT", "\"$smtpLogin\"")
+        buildConfigField("String", "SMTP_FROM_DEFAULT", "\"${localProperties.getProperty("SMTP_FROM", smtpLogin)}\"")
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables {

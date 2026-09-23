@@ -208,7 +208,7 @@ private fun EmailSettingsContent(
                         onValueChange = { onEvent(EmailSettingsEvent.OnSmtpLoginChanged(it)) },
                         modifier = Modifier.fillMaxWidth(),
                         label = { Text("Email для отправки") },
-                        placeholder = { Text(EmailDefaults.SMTP_LOGIN) }
+                        placeholder = { Text(EmailDefaults.EMAIL_PLACEHOLDER) }
                     )
                 }
             }
@@ -237,7 +237,7 @@ private fun EmailSettingsContent(
                         onValueChange = { onEvent(EmailSettingsEvent.OnFromEmailChanged(it)) },
                         modifier = Modifier.fillMaxWidth(),
                         label = { Text("Email отправителя") },
-                        placeholder = { Text(EmailDefaults.FROM_EMAIL) }
+                        placeholder = { Text(EmailDefaults.EMAIL_PLACEHOLDER) }
                     )
                 }
             }
