@@ -46,17 +46,20 @@ class UsageStatsRepositoryImpl @Inject constructor(
             )
         }.sortedByDescending { it.totalDurationMs }
 
+        // Filter out apps used less than 1 minute (60_000 ms)
+        val appsFiltered = apps.filter { it.totalDurationMs >= 60_000 }
+
         // Fill category from tracked_apps
         val trackedApps = trackedAppDao.getAllTrackedAppsSync()
         val categoryMap = trackedApps.associate { it.packageName to it.category }
-        val appsWithCategory = apps.map { app ->
+        val appsWithCategory = appsFiltered.map { app ->
             val cat = categoryMap[app.packageName] ?: ""
             if (cat.isNotEmpty()) app.copy(category = cat) else app
         }
 
         return DailyUsageStats(
             date = date,
-            totalUsageMs = sessions.sumOf { it.durationMs },
+            totalUsageMs = appsWithCategory.sumOf { it.totalDurationMs },
             apps = appsWithCategory
         )
     }
