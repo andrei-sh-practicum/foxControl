@@ -11,9 +11,6 @@ interface EmailRecipientDao {
     @Query("SELECT * FROM email_recipients WHERE isActive = 1 ORDER BY name")
     suspend fun getActiveRecipients(): List<EmailRecipientEntity>
 
-    @Query("SELECT * FROM email_recipients WHERE id = :id")
-    suspend fun getRecipientById(id: Long): EmailRecipientEntity?
-
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertRecipient(recipient: EmailRecipientEntity): Long
 

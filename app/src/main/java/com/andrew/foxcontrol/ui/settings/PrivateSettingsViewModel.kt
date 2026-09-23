@@ -3,7 +3,6 @@ package com.andrew.foxcontrol.ui.settings
 import androidx.compose.runtime.Immutable
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.andrew.foxcontrol.data.local.entity.AppLimitEntity
 import com.andrew.foxcontrol.data.local.entity.TrackedAppEntity
 import com.andrew.foxcontrol.data.repository.UserRepository
 import com.andrew.foxcontrol.domain.repository.UsageStatsRepository

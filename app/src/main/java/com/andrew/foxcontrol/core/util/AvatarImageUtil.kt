@@ -26,10 +26,6 @@ object AvatarImageUtil {
             avatarDir.mkdirs()
         }
 
-        // Delete previous avatar file if exists
-        val oldFile = getPreviousAvatarFile(context)
-        oldFile?.delete()
-
         // Decode with inSampleSize to avoid OOM for large images
         val srcBitmap = decodeSampledBitmap(context, uri, AVATAR_SIZE, AVATAR_SIZE)
             ?: return null
@@ -114,12 +110,6 @@ object AvatarImageUtil {
 
         return Bitmap.createBitmap(source, srcX, srcY, minDim, minDim,
             Matrix(), true)
-            .also { cropped ->
-                if (cropped != source) {
-                    // If same bitmap (no crop needed), still resize
-                    if (cropped.width == size && cropped.height == size) return@also
-                }
-            }
             .let { bitmap ->
                 if (bitmap.width != size || bitmap.height != size) {
                     Bitmap.createScaledBitmap(bitmap, size, size, true)
@@ -128,17 +118,5 @@ object AvatarImageUtil {
                     bitmap
                 }
             }
-    }
-
-    /**
-     * Returns the current avatar file path stored in the database (for cleanup).
-     * We don't have access to DB here, so we just return null.
-     * The caller (UserRepository) handles cleanup.
-     */
-    private fun getPreviousAvatarFile(context: Context): File? {
-        // This is called before the new avatar is saved,
-        // so we can't know the previous file path here.
-        // Cleanup is handled by the repository layer.
-        return null
     }
 }

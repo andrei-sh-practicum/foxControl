@@ -10,7 +10,6 @@ import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.catch
-import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import javax.inject.Inject
@@ -77,14 +76,6 @@ class SettingsViewModel @Inject constructor(
     fun clearMessage() {
         _state.update { it.copy(message = "") }
     }
-
-    fun onEvent(event: SettingsEvent) {
-        when (event) {
-            is SettingsEvent.OnPrivateSettingsClick -> {
-                // Handled in UI
-            }
-        }
-    }
 }
 
 @Immutable
@@ -96,7 +87,3 @@ data class SettingsState(
     val message: String = "",
     val isLoading: Boolean = true
 )
-
-sealed class SettingsEvent {
-    object OnPrivateSettingsClick : SettingsEvent()
-}

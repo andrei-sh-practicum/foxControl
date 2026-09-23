@@ -5,7 +5,6 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.andrew.foxcontrol.BuildConfig
 import com.andrew.foxcontrol.core.email.EmailSender
-import com.andrew.foxcontrol.data.local.entity.EmailRecipientEntity
 import com.andrew.foxcontrol.data.repository.EmailRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Dispatchers
@@ -14,7 +13,6 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import java.text.SimpleDateFormat
 import java.util.*
 import javax.inject.Inject
 
@@ -71,13 +69,7 @@ class EmailSettingsViewModel @Inject constructor(
     fun onEvent(event: EmailSettingsEvent) {
         when (event) {
             is EmailSettingsEvent.OnToggleEnabled -> {
-                _state.update {
-                    if (event.enabled) {
-                        it.copy(isEnabled = true, lastTestResult = null)
-                    } else {
-                        it.copy(isEnabled = false, lastTestResult = null)
-                    }
-                }
+                _state.update { it.copy(isEnabled = event.enabled, lastTestResult = null) }
             }
 
             is EmailSettingsEvent.OnSmtpHostChanged -> {

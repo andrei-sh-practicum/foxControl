@@ -18,7 +18,6 @@ import java.text.SimpleDateFormat
 import java.util.*
 import javax.inject.Inject
 import javax.inject.Singleton
-import kotlin.text.isNotBlank
 
 @Singleton
 class UsageStatsRepositoryImpl @Inject constructor(
@@ -93,36 +92,12 @@ class UsageStatsRepositoryImpl @Inject constructor(
         )
     }
 
-    override suspend fun getTopApps(count: Int): List<UsageStats> {
-        val today = dateFormat.format(Date())
-        val usage = getDailyUsage(today)
-        return usage.apps.take(count)
-    }
-
-    override suspend fun getUsageForPackage(packageName: String, startDate: String): List<UsageStats> {
-        val today = dateFormat.format(Date())
-        val daily = getDailyUsage(today)
-        return daily.apps.filter { it.packageName == packageName }
-    }
-
-    override suspend fun getTopEntertainmentApps(count: Int): List<UsageStats> {
-        val today = dateFormat.format(Date())
-        val usage = getDailyUsage(today)
-        return usage.apps
-            .filter { it.isEntertainment }
-            .take(count)
-    }
-
     override suspend fun getTodaySessionsForPackage(packageName: String, date: String): List<com.andrew.foxcontrol.data.local.entity.UsageSessionEntity> {
         return usageSessionDao.getSessionsByPackageAndDate(packageName, date)
     }
 
     override suspend fun getTrackedApp(packageName: String): TrackedAppEntity? {
         return trackedAppDao.getTrackedApp(packageName)
-    }
-
-    override suspend fun upsertTrackedApp(app: TrackedAppEntity) {
-        trackedAppDao.insertTrackedApp(app)
     }
 
     override suspend fun clearTrackedApps() {
@@ -187,10 +162,6 @@ class UsageStatsRepositoryImpl @Inject constructor(
         }
     }
 
-    suspend fun upsertTrackedApps(apps: List<TrackedAppEntity>) {
-        trackedAppDao.insertTrackedApps(apps)
-    }
-
     // --- Limit checking ---
 
     suspend fun checkGlobalLimit(): Boolean {
@@ -228,10 +199,6 @@ class UsageStatsRepositoryImpl @Inject constructor(
         } catch (e: Exception) {
             // Log but don't crash
         }
-    }
-
-    suspend fun getLastHeartbeat(): Long? {
-        return serviceHeartbeatDao.getLastHeartbeat()?.timestamp
     }
 
     // --- Limits ---

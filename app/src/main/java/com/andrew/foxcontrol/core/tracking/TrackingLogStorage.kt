@@ -21,7 +21,6 @@ object TrackingLogStorage {
     // In-memory buffer (oldest first, same order as the file) — fallback when the file is unreadable
     private val logBuffer = kotlin.collections.ArrayDeque<String>()
     private var logFile: File? = null
-    private var contextRef: Context? = null
     @Volatile
     private var initialized = false
 
@@ -44,18 +43,6 @@ object TrackingLogStorage {
     }
 
     /**
-     * Add a log entry with context — auto-initializes file from this context.
-     * Call from Worker/Service processes where init() may not have been called.
-     */
-    fun add(context: Context, tag: String, message: String) {
-        synchronized(this) {
-            if (!initialized) initFile(context)
-        }
-        if (!initialized) return
-        addInternal(tag, message)
-    }
-
-    /**
      * Opens the log file, trims it to the last [MAX_LOG_LINES] lines and loads them into the buffer.
      * Only the tail of the file is read, so an oversized log can't cause OutOfMemoryError.
      */
@@ -64,7 +51,6 @@ object TrackingLogStorage {
         try {
             val file = File(context.filesDir, LOG_FILE_NAME)
             logFile = file
-            contextRef = context
             initialized = true
 
             if (!file.exists()) {

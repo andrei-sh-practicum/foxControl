@@ -139,13 +139,6 @@ object PermissionHelper {
      */
     fun criticalGranted(usageStats: Boolean, overlay: Boolean): Boolean =
         usageStats && overlay
-
-    /**
-     * Check if all permissions for full functionality are granted.
-     */
-    fun areAllPermissionsGranted(context: Context): Boolean {
-        return getRequiredPermissions(context).allGranted
-    }
 }
 
 data class OnboardingPermissions(

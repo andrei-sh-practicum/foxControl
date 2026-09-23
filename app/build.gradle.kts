@@ -111,7 +111,6 @@ dependencies {
     // Navigation Compose
     val navigationVersion = "2.8.5"
     implementation("androidx.navigation:navigation-compose:$navigationVersion")
-    implementation("androidx.navigation:navigation-runtime-ktx:$navigationVersion")
 
     // Room (KSP first so DAO is generated before Hilt processes it)
     val roomVersion = "2.6.1"
@@ -126,10 +125,6 @@ dependencies {
 
     // DataStore (Preferences)
     implementation("androidx.datastore:datastore-preferences:1.1.1")
-
-    // Android Security (EncryptedSharedPreferences)
-    val securityVersion = "1.1.0-alpha06"
-    implementation("androidx.security:security-crypto:$securityVersion")
 
     // Material Icons Extended
     implementation("androidx.compose.material:material-icons-extended:1.7.6")

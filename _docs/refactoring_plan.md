@@ -170,14 +170,14 @@
 - [x] 0.5 Локальная сборка: Gradle 8.11.1 скачивается во временную папку (в репозитории нет `gradle-wrapper.jar`), `:app:compileDebugKotlin` + `:app:testDebugUnitTest` проходят (101 тест).
 
 ### Этап 1 — мёртвый код 🟢
-- [ ] 1.1 Удалить `EmailSettingsRepository.kt` (D-1).
-- [ ] 1.2 Удалить неиспользуемые методы репозиториев, интерфейса и DAO (D-4…D-7). `setGlobalLimit` и `insertGlobalLimit` **оставить** ([B-1](bugs_plan.md#b-1-глобальный-лимит--нерабочая-функция)), `OnAppLimitChanged` — тоже (D-16).
-- [ ] 1.3 `PermissionMonitor`/`PermissionHelper`: удалить мёртвый API (D-8, D-9).
-- [ ] 1.4 `TrackingLogStorage`: удалить `contextRef` и перегрузку `add(context,…)` (D-10).
-- [ ] 1.5 `TrackingJob`: схлопнуть мёртвую ветку, удалить `lastPollEndTime` (D-11). **Проверить эквивалентность вручную:** во всех ветках, где `currentForeground < previousTime`, итог — `lastForegroundTime[pkg] = currentForeground` и `continue`.
-- [ ] 1.6 Мелочи: D-2, D-3, D-12…D-20, D-22.
-- [ ] 1.7 Optimize Imports по всему модулю (D-21, U-6).
-- [ ] 1.8 Убрать неиспользуемые зависимости (D-24), включая `security-crypto`.
+- [x] 1.1 Удалить `EmailSettingsRepository.kt` (D-1).
+- [x] 1.2 Удалить неиспользуемые методы репозиториев, интерфейса и DAO (D-4…D-7). `setGlobalLimit` и `insertGlobalLimit` **оставить** ([B-1](bugs_plan.md#b-1-глобальный-лимит--нерабочая-функция)), `OnAppLimitChanged` — тоже (D-16).
+- [x] 1.3 `PermissionMonitor`/`PermissionHelper`: удалить мёртвый API (D-8, D-9).
+- [x] 1.4 `TrackingLogStorage`: удалить `contextRef` и перегрузку `add(context,…)` (D-10).
+- [x] 1.5 `TrackingJob`: схлопнуть мёртвую ветку, удалить `lastPollEndTime` (D-11). **Проверить эквивалентность вручную:** во всех ветках, где `currentForeground < previousTime`, итог — `lastForegroundTime[pkg] = currentForeground` и `continue`.
+- [x] 1.6 Мелочи: D-2, D-3, D-12…D-20, D-22. D-14 (`ACTION_HIDE`) оставлен как публичный контракт сервиса, D-16 сохранён для B-13. Дополнительно удалён неиспользуемый `UsageSessionDao.insertSessions` и `ServiceHeartbeatDao.getLastHeartbeat`.
+- [x] 1.7 Неиспользуемые импорты удалены по всему `app/src/main` (38 шт., D-21). Замена FQN на импорты (U-6) перенесена в этап 6 — делается вместе с правками этих экранов.
+- [x] 1.8 Убрать неиспользуемые зависимости (D-24), включая `security-crypto`.
 
 **Проверка:** сборка, unit-тесты, smoke-тест.
 

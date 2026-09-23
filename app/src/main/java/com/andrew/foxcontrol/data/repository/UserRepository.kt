@@ -88,9 +88,6 @@ class UserRepository @Inject constructor(
     val passwordHash: Flow<String?> = context.dataStore.data
         .map { it[PASSWORD_HASH] }
 
-    val onboardingCompleted: Flow<Boolean> = context.dataStore.data
-        .map { it[ONBOARDING_COMPLETED] ?: false }
-
     suspend fun setPasswordHash(hash: String) {
         context.dataStore.edit { preferences ->
             preferences[PASSWORD_HASH] = hash

@@ -37,11 +37,7 @@ class EmailRepository @Inject constructor(
             EmailSettingsEntity(key = key, value = value)
         )
     }
-    suspend fun deleteSetting(key: String) = settingsDao.deleteSetting(key)
 
     // Report logs
-    suspend fun getLastLog(): ReportSendLogEntity? = reportLogDao.getLastLog()
-    suspend fun getRecentLogs(limit: Int = 10): List<ReportSendLogEntity> =
-        reportLogDao.getRecentLogs(limit)
     suspend fun saveLog(log: ReportSendLogEntity): Long = reportLogDao.insertLog(log)
 }

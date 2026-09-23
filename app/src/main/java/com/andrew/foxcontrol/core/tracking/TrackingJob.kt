@@ -37,8 +37,6 @@ class TrackingJob(
 
     // Track last known foreground time per package to compute deltas
     private val lastForegroundTime = ConcurrentHashMap<String, Long>()
-    // Track the last poll end time per package to compute accurate deltas
-    private val lastPollEndTime = ConcurrentHashMap<String, Long>()
     // Log empty queryUsageStats result only on state change, not every minute
     @Volatile
     private var lastPollWasEmpty = false
@@ -153,35 +151,18 @@ class TrackingJob(
 
             // Compute delta: usage since last poll
             val previousTime = lastForegroundTime[packageName]
-            val previousPollEnd = lastPollEndTime[packageName]
-            var deltaMs: Long
-
-            if (previousTime != null && currentForeground >= previousTime) {
-                // App was in foreground during this interval
-                deltaMs = currentForeground - previousTime
-            } else if (previousTime != null && currentForeground < previousTime) {
-                // Time went backwards (app was killed or device rebooted)
-                // Use the previous poll's end time to compute delta from last known state
-                val lastKnownForeground = previousTime
-                if (previousPollEnd != null) {
-                    // App was in foreground since last poll, but time went backwards
-                    // Assume the app was in foreground until the time went backwards
-                    deltaMs = 0L
-                } else {
-                    deltaMs = 0L
-                }
-                // Reset tracking for this app
-                lastForegroundTime[packageName] = currentForeground
-                lastPollEndTime[packageName] = endTime
-                continue
-            } else {
-                // First time seeing this app - initialize tracking
-                deltaMs = 0L
-            }
-
             // Update tracking state
             lastForegroundTime[packageName] = currentForeground
-            lastPollEndTime[packageName] = endTime
+
+            val deltaMs = when {
+                // App was in foreground during this interval
+                previousTime != null && currentForeground >= previousTime -> currentForeground - previousTime
+                // Time went backwards (app was killed / device rebooted / bucket changed):
+                // just re-base on the new value, nothing is recorded for this poll
+                previousTime != null -> continue
+                // First time seeing this app — initialize tracking
+                else -> 0L
+            }
 
             if (deltaMs > 0) {
                 val appName = getAppName(packageName)

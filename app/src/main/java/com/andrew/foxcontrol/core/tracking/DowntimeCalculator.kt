@@ -37,7 +37,6 @@ data class DowntimeHourBucket(
  */
 object DowntimeCalculator {
 
-    private const val HEARTBEAT_INTERVAL_MS = 60_000L
     private const val DOWNTIME_THRESHOLD_MS = 90_000L // 1.5x heartbeat interval
     private const val WINDOW_START_HOUR = 6
     private const val WINDOW_END_HOUR = 22

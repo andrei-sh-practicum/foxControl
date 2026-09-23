@@ -4,7 +4,6 @@ import androidx.compose.runtime.Immutable
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.andrew.foxcontrol.core.permissions.OnboardingPermissions
-import com.andrew.foxcontrol.core.permissions.PermissionHelper
 import com.andrew.foxcontrol.core.permissions.PermissionRepository
 import com.andrew.foxcontrol.data.repository.UserRepository
 import dagger.hilt.android.lifecycle.HiltViewModel

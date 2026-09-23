@@ -112,13 +112,6 @@ class EmailRecipientsViewModel @Inject constructor(
 
     private fun toggleActive(recipient: EmailRecipientState) {
         viewModelScope.launch {
-            val entity = EmailRecipientEntity(
-                id = recipient.id,
-                name = recipient.name,
-                email = recipient.email,
-                isActive = recipient.isActive,
-                createdAt = recipient.createdAt
-            )
             emailRepository.toggleRecipientActive(recipient.id, recipient.isActive)
             _state.update {
                 it.copy(

@@ -2,10 +2,8 @@ package com.andrew.foxcontrol.di
 
 import android.content.Context
 import android.content.pm.PackageManager
-import android.util.Log
 import androidx.room.Room
 import com.andrew.foxcontrol.data.local.AppDatabase
-import com.andrew.foxcontrol.data.local.AppDatabase.Companion.DATABASE_VERSION
 import com.andrew.foxcontrol.data.local.MIGRATION_2_3
 import com.andrew.foxcontrol.data.local.MIGRATION_3_4
 import com.andrew.foxcontrol.data.local.dao.*
@@ -16,7 +14,6 @@ import dagger.hilt.android.qualifiers.ApplicationContext
 import dagger.hilt.components.SingletonComponent
 import javax.inject.Singleton
 
-private const val TAG = "AppModule"
 private const val DB_NAME = "foxcontrol_db"
 
 @Module

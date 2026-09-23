@@ -22,9 +22,6 @@ import com.andrew.foxcontrol.data.local.entity.*
     exportSchema = true
 )
 abstract class AppDatabase : RoomDatabase() {
-    companion object {
-        const val DATABASE_VERSION = 3
-    }
     abstract fun userDao(): UserDao
     abstract fun usageSessionDao(): UsageSessionDao
     abstract fun trackedAppDao(): TrackedAppDao

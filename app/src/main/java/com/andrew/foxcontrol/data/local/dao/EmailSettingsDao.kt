@@ -14,6 +14,4 @@ interface EmailSettingsDao {
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun upsertSetting(setting: EmailSettingsEntity)
 
-    @Query("DELETE FROM email_settings WHERE key = :key")
-    suspend fun deleteSetting(key: String)
 }

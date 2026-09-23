@@ -18,7 +18,6 @@ import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
-import androidx.hilt.navigation.compose.hiltViewModel
 import com.andrew.foxcontrol.core.util.IconCache
 import com.andrew.foxcontrol.core.util.toBitmap
 import kotlinx.coroutines.Dispatchers

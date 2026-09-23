@@ -46,9 +46,6 @@ object AppUsageHourCalculator {
         windowEndHour: Int = WINDOW_END_HOUR
     ): List<AppUsageHourBucket> {
 
-        val windowStartMs = hourStartMs(windowStartHour)
-        val windowEndMs = hourStartMs(windowEndHour)
-
         // Sort sessions by start time for consistent processing
         val sorted = sessions.toMutableList().sortedBy { it.first }
 

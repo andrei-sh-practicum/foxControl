@@ -74,7 +74,6 @@ fun SettingsScreen(
         onBackClick = onBackClick,
         onPrivateSettingsClick = onPrivateSettingsClick,
         onDebugClick = onDebugClick,
-        onEvent = viewModel::onEvent,
         onNameSave = viewModel::saveName,
         onClearMessage = viewModel::clearMessage,
         onAvatarPickClick = { imagePickerLauncher.launch("image/*") }
@@ -88,7 +87,6 @@ private fun SettingsContent(
     onBackClick: () -> Unit,
     onPrivateSettingsClick: () -> Unit,
     onDebugClick: () -> Unit,
-    onEvent: (SettingsEvent) -> Unit,
     onNameSave: (String) -> Unit,
     onClearMessage: () -> Unit,
     onAvatarPickClick: () -> Unit

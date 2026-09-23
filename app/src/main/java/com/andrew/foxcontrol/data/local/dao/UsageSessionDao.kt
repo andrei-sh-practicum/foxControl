@@ -2,12 +2,9 @@ package com.andrew.foxcontrol.data.local.dao
 
 import androidx.room.*
 import com.andrew.foxcontrol.data.local.entity.UsageSessionEntity
-import kotlinx.coroutines.flow.Flow
 
 @Dao
 interface UsageSessionDao {
-    @Query("SELECT * FROM usage_sessions WHERE date = :date ORDER BY startTime DESC")
-    fun getSessionsByDate(date: String): Flow<List<UsageSessionEntity>>
 
     @Query("SELECT * FROM usage_sessions WHERE date = :date ORDER BY startTime DESC")
     suspend fun getSessionsByDateSync(date: String): List<UsageSessionEntity>
@@ -24,14 +21,8 @@ interface UsageSessionDao {
     """)
     suspend fun getWeeklyUsageByPackage(startDate: String, endDate: String): List<UsageStatsSummary>
 
-    @Query("SELECT * FROM usage_sessions WHERE packageName = :packageName AND date >= :startDate ORDER BY startTime DESC")
-    fun getSessionsByPackageSince(packageName: String, startDate: String): Flow<List<UsageSessionEntity>>
-
     @Insert(onConflict = OnConflictStrategy.IGNORE)
     suspend fun insertSession(session: UsageSessionEntity)
-
-    @Insert(onConflict = OnConflictStrategy.IGNORE)
-    suspend fun insertSessions(sessions: List<UsageSessionEntity>)
 
     @Query("DELETE FROM usage_sessions WHERE date < :keepDate")
     suspend fun deleteOldSessions(keepDate: String): Int

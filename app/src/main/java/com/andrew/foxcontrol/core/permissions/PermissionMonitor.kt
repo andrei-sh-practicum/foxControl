@@ -24,26 +24,16 @@ class PermissionMonitor @Inject constructor(
         val missingCount: Int = 0
     )
 
-    interface Callback {
-        fun onPermissionsChanged(status: PermissionStatus)
-    }
-
-    private var callback: Callback? = null
     private var lastStatus: PermissionStatus? = null
 
-    fun setCallback(callback: Callback?) {
-        this.callback = callback
-    }
-
     /**
-     * Check current permissions and notify callback if changed.
+     * Check current permissions and log if they changed since the previous check.
      */
     fun checkPermissions(): PermissionStatus {
         val status = getCurrentStatus()
         if (status != lastStatus) {
             Log.d(TAG, "Permissions changed: $status")
             lastStatus = status
-            callback?.onPermissionsChanged(status)
         }
         return status
     }
@@ -60,19 +50,5 @@ class PermissionMonitor @Inject constructor(
             missingCount = PermissionHelper.getMissingPermissionCount(permissions)
         )
         return status
-    }
-
-    /**
-     * Check if critical permissions (usage stats + overlay) are still granted.
-     */
-    fun areCriticalPermissionsGranted(): Boolean {
-        return PermissionHelper.areCriticalPermissionsGranted(context)
-    }
-
-    /**
-     * Check if all permissions for full functionality are granted.
-     */
-    fun areAllPermissionsGranted(): Boolean {
-        return PermissionHelper.areAllPermissionsGranted(context)
     }
 }

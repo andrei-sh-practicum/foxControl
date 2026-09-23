@@ -1,7 +1,6 @@
 package com.andrew.foxcontrol.core.email
 
 import android.content.Context
-import com.andrew.foxcontrol.R
 import com.andrew.foxcontrol.core.tracking.TrackingLogStorage
 import com.andrew.foxcontrol.data.local.entity.ReportSendLogEntity
 import com.andrew.foxcontrol.data.repository.EmailRepository

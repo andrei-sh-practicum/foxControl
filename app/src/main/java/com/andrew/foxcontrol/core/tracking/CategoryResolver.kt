@@ -2,7 +2,6 @@ package com.andrew.foxcontrol.core.tracking
 
 import android.content.pm.ApplicationInfo
 import android.content.pm.PackageManager
-import javax.inject.Inject
 
 object CategoryResolver {
 
