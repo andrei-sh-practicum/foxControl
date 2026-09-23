@@ -30,17 +30,14 @@ class UsageStatsRepositoryImpl @Inject constructor(
     private val packageManager: PackageManager
 ) : UsageStatsRepository {
 
-    companion object {
-        /** Apps used less than this per day are left out of the daily stats (since bf44269). */
-        const val MIN_APP_USAGE_MS = 60_000L
-    }
-
     override suspend fun getDailyUsage(date: String): DailyUsageStats {
         val sessions = usageSessionDao.getSessionsByDateSync(date)
-        val apps = sessions.groupBy { it.packageName to it.appName }.map { (key, list) ->
+        // One entry per package; the name comes from the most recent session
+        // (an app can be renamed during the day — update, system language change)
+        val apps = sessions.groupBy { it.packageName }.map { (packageName, list) ->
             UsageStats(
-                packageName = key.first,
-                appName = key.second,
+                packageName = packageName,
+                appName = list.maxBy { it.endTime }.appName,
                 totalDurationMs = list.sumOf { it.durationMs },
                 sessionCount = list.size,
                 isEntertainment = list.firstOrNull()?.isEntertainment ?: false,
@@ -48,14 +45,12 @@ class UsageStatsRepositoryImpl @Inject constructor(
             )
         }.sortedByDescending { it.totalDurationMs }
 
-        // Filter out apps used less than 1 minute
-        val appsFiltered = apps.filter { it.totalDurationMs >= MIN_APP_USAGE_MS }
-
-        val appsWithCategory = withCategories(appsFiltered)
+        // Full data: short-use apps are hidden only in the UI lists (UsageListFilter)
+        val appsWithCategory = withCategories(apps)
 
         return DailyUsageStats(
             date = date,
-            totalUsageMs = appsWithCategory.sumOf { it.totalDurationMs },
+            totalUsageMs = sessions.sumOf { it.durationMs },
             apps = appsWithCategory
         )
     }

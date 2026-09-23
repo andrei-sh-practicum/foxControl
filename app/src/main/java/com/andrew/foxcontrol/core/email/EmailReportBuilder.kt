@@ -4,6 +4,7 @@ import com.andrew.foxcontrol.core.util.formatDuration
 import com.andrew.foxcontrol.data.local.entity.AppLimitEntity
 import com.andrew.foxcontrol.domain.model.DailyUsageStats
 import com.andrew.foxcontrol.domain.usecase.LimitCalculator
+import com.andrew.foxcontrol.domain.usecase.UsageListFilter
 
 /**
  * Builds the plain-text daily usage report. Pure function — no I/O.
@@ -18,7 +19,9 @@ object EmailReportBuilder {
         stats: DailyUsageStats,
         appLimits: List<AppLimitEntity>
     ): Report {
+        // Limits use the full data; the app list hides short-use apps like the Home screen (B-18)
         val exceededApps = LimitCalculator.exceededApps(stats.apps, appLimits)
+        val listedApps = UsageListFilter.visibleApps(stats.apps)
 
         val subject = "Fox Control: Отчёт за $date"
         val body = buildString {
@@ -39,10 +42,10 @@ object EmailReportBuilder {
                 appendLine("")
             }
 
-            if (stats.apps.isNotEmpty()) {
+            if (listedApps.isNotEmpty()) {
                 appendLine("Список приложений:")
                 appendLine("-".repeat(30))
-                stats.apps.forEach { app ->
+                listedApps.forEach { app ->
                     appendLine("- ${app.appName}: ${formatDuration(app.totalDurationMs)}")
                 }
             } else {

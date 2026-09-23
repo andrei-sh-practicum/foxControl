@@ -27,7 +27,8 @@ class EmailReportBuilderTest {
             apps = listOf(
                 app("yt", "YouTube", 3_600_000L),
                 app("game", "Game", 2_400_000L),
-                app("chrome", "Chrome", 1_200_000L)
+                app("chrome", "Chrome", 1_200_000L),
+                app("short", "Short", 59_000L)   // < 1 min: hidden from the list (B-18)
             )
         )
         val limits = listOf(

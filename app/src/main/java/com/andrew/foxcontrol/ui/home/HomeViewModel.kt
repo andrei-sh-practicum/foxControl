@@ -9,6 +9,7 @@ import com.andrew.foxcontrol.domain.model.DailyUsageStats
 import com.andrew.foxcontrol.domain.model.WeeklyUsageStats
 import com.andrew.foxcontrol.domain.repository.UsageStatsRepository
 import com.andrew.foxcontrol.domain.usecase.LimitCalculator
+import com.andrew.foxcontrol.domain.usecase.UsageListFilter
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -54,7 +55,7 @@ class HomeViewModel @Inject constructor(
 
                         _state.update {
                             it.copy(
-                                dailyStats = dailyStats,
+                                dailyStats = dailyStats.withVisibleApps(),
                                 yesterdayStats = null,
                                 weeklyStats = null,
                                 exceededApps = exceededApps,
@@ -75,7 +76,7 @@ class HomeViewModel @Inject constructor(
 
                         _state.update {
                             it.copy(
-                                yesterdayStats = yesterdayStats,
+                                yesterdayStats = yesterdayStats.withVisibleApps(),
                                 dailyStats = null,
                                 weeklyStats = null,
                                 exceededAppsYesterday = exceededAppsYesterday,
@@ -95,7 +96,7 @@ class HomeViewModel @Inject constructor(
                             it.copy(
                                 dailyStats = null,
                                 yesterdayStats = null,
-                                weeklyStats = weeklyStats,
+                                weeklyStats = weeklyStats.copy(apps = UsageListFilter.visibleApps(weeklyStats.apps)),
                                 exceededApps = emptyList(),
                                 exceededAppsYesterday = emptyList(),
                                 hourlyUsageToday = emptyList(),
@@ -115,6 +116,12 @@ class HomeViewModel @Inject constructor(
             }
         }
     }
+
+    /**
+     * Hides short-use apps from the list; the total keeps the full time (B-18).
+     * Exceeded limits are computed from the full data before this.
+     */
+    private fun DailyUsageStats.withVisibleApps() = copy(apps = UsageListFilter.visibleApps(apps))
 
     private fun computeExceededApps(
         dailyStats: DailyUsageStats,

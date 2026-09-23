@@ -58,19 +58,21 @@ class UsageStatsRepositoryImplTest {
     )
 
     @Test
-    fun getDailyUsage_dropsAppsBelowOneMinute() = runBlocking {
+    fun getDailyUsage_keepsShortUseAppsAndCountsThemInTotal() = runBlocking {
+        // B-18: short-use apps are hidden only in UI lists, the repository returns everything
         coEvery { usageSessionDao.getSessionsByDateSync(date) } returns listOf(
-            session("short", 59_999L),
-            session("exact", 60_000L)
+            session("short", 30_000L),
+            session("long", 120_000L)
         )
 
         val usage = repository.getDailyUsage(date)
 
-        assertEquals(listOf("exact"), usage.apps.map { it.packageName })
+        assertEquals(listOf("long", "short"), usage.apps.map { it.packageName })
+        assertEquals(150_000L, usage.totalUsageMs)
     }
 
     @Test
-    fun getDailyUsage_thresholdAppliesToDailySumNotToSingleSession() = runBlocking {
+    fun getDailyUsage_sumsSessionsPerApp() = runBlocking {
         coEvery { usageSessionDao.getSessionsByDateSync(date) } returns listOf(
             session("app", 40_000L),
             session("app", 40_000L)
@@ -84,16 +86,18 @@ class UsageStatsRepositoryImplTest {
     }
 
     @Test
-    fun getDailyUsage_totalIsSumOfShownAppsOnly() = runBlocking {
-        // Current behavior since bf44269 (see bugs_plan.md, B-18)
+    fun getDailyUsage_renamedAppIsOneEntryWithLatestName() = runBlocking {
+        // B-11: the label changed during the day
         coEvery { usageSessionDao.getSessionsByDateSync(date) } returns listOf(
-            session("short", 30_000L),
-            session("long", 120_000L)
+            UsageSessionEntity(packageName = "app", appName = "Old", startTime = 0, endTime = 1_000, durationMs = 40_000L, date = date),
+            UsageSessionEntity(packageName = "app", appName = "New", startTime = 2_000, endTime = 3_000, durationMs = 40_000L, date = date)
         )
 
         val usage = repository.getDailyUsage(date)
 
-        assertEquals(120_000L, usage.totalUsageMs)
+        assertEquals(1, usage.apps.size)
+        assertEquals("New", usage.apps[0].appName)
+        assertEquals(80_000L, usage.apps[0].totalDurationMs)
     }
 
     @Test
