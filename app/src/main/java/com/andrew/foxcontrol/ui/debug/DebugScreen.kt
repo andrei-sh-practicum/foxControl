@@ -31,13 +31,14 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -52,13 +53,19 @@ fun DebugScreen(
     viewModel: DebugViewModel = hiltViewModel()
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
-    val context = LocalContext.current
-    var selectedTab by mutableIntStateOf(0)
+    var selectedTab by remember { mutableIntStateOf(0) }
     val tabs = listOf("БД + Сервис", "Разрешения", "Лог", "Анализ")
 
-    DisposableEffect(Unit) {
+    LaunchedEffect(Unit) {
         viewModel.loadDebugInfo()
-        onDispose {}
+    }
+
+    // File / system reads happen in the view model on a background thread
+    LaunchedEffect(selectedTab) {
+        when (selectedTab) {
+            1 -> viewModel.loadPermissionInfo()
+            2 -> viewModel.loadLogs()
+        }
     }
 
     Scaffold(
@@ -87,7 +94,7 @@ fun DebugScreen(
                 horizontalArrangement = Arrangement.SpaceEvenly
             ) {
                 tabs.forEachIndexed { index, title ->
-                    androidx.compose.material3.Button(
+                    Button(
                         onClick = { selectedTab = index },
                         modifier = Modifier.weight(1f)
                     ) {
@@ -103,8 +110,8 @@ fun DebugScreen(
             // Tab content
             when (selectedTab) {
                 0 -> TabDatabase(state, viewModel)
-                1 -> TabPermissions(viewModel, context)
-                2 -> TabLog(viewModel)
+                1 -> TabPermissions(state.permissionInfo)
+                2 -> TabLog(state.emailLogs, state.logContent)
                 3 -> TabAnalysis(state)
             }
         }
@@ -204,7 +211,7 @@ private fun TabDatabase(state: DebugState, viewModel: DebugViewModel? = null) {
                 Text(
                     text = state.recentSessionsStr,
                     style = MaterialTheme.typography.bodySmall,
-                    fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace
+                    fontFamily = FontFamily.Monospace
                 )
             }
         }
@@ -212,9 +219,7 @@ private fun TabDatabase(state: DebugState, viewModel: DebugViewModel? = null) {
 }
 
 @Composable
-private fun TabPermissions(viewModel: DebugViewModel, context: android.content.Context) {
-    val permissionInfo = viewModel.getPermissionInfo(context)
-
+private fun TabPermissions(permissionInfo: String) {
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -230,7 +235,7 @@ private fun TabPermissions(viewModel: DebugViewModel, context: android.content.C
             Text(
                 text = permissionInfo,
                 style = MaterialTheme.typography.bodySmall,
-                fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace
+                fontFamily = FontFamily.Monospace
             )
         }
 
@@ -254,10 +259,7 @@ private fun TabPermissions(viewModel: DebugViewModel, context: android.content.C
 }
 
 @Composable
-private fun TabLog(viewModel: DebugViewModel) {
-    val emailLogs = viewModel.getEmailSchedulerLogs()
-    val logContent = viewModel.getLogContent()
-
+private fun TabLog(emailLogs: List<String>, logContent: String) {
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -275,21 +277,21 @@ private fun TabLog(viewModel: DebugViewModel) {
                 Text(
                     text = emailLogs.joinToString("\n"),
                     style = MaterialTheme.typography.bodySmall,
-                    fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace
+                    fontFamily = FontFamily.Monospace
                 )
             }
         }
 
         // Full log
         DebugSection(
-            title = "Полный лог (последние ${com.andrew.foxcontrol.core.tracking.TrackingLogStorage.MAX_LOG_LINES} записей)",
+            title = "Полный лог (последние ${TrackingLogStorage.MAX_LOG_LINES} записей)",
             status = "Текст",
             icon = Icons.Default.BugReport
         ) {
             Text(
                 text = logContent,
                 style = MaterialTheme.typography.bodySmall,
-                fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace
+                fontFamily = FontFamily.Monospace
             )
         }
     }
@@ -324,7 +326,7 @@ private fun TabAnalysis(state: DebugState) {
                           "4. trackUsageSession() не вызывается\n" +
                           "5. insertSession() падает с ошибкой",
                     style = MaterialTheme.typography.bodySmall,
-                    fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace,
+                    fontFamily = FontFamily.Monospace,
                     modifier = Modifier.padding(top = 8.dp)
                 )
             }
@@ -360,7 +362,7 @@ private fun TabAnalysis(state: DebugState) {
                           "2. Service onCreate() не вызван\n" +
                           "3. TrackingJob.start() упал с ошибкой",
                     style = MaterialTheme.typography.bodySmall,
-                    fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace,
+                    fontFamily = FontFamily.Monospace,
                     modifier = Modifier.padding(top = 8.dp)
                 )
             }
@@ -419,7 +421,7 @@ private fun TabAnalysis(state: DebugState) {
             Text(
                 text = sb.toString(),
                 style = MaterialTheme.typography.bodySmall,
-                fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace
+                fontFamily = FontFamily.Monospace
             )
         }
     }
@@ -429,7 +431,7 @@ private fun TabAnalysis(state: DebugState) {
 private fun DebugSection(
     title: String,
     status: String,
-    icon: androidx.compose.ui.graphics.vector.ImageVector?,
+    icon: ImageVector?,
     content: @Composable () -> Unit
 ) {
     val isOk = status in listOf("OK", "Инфо")
@@ -484,7 +486,7 @@ private fun DebugRow(label: String, value: String) {
         Text(
             text = value,
             style = MaterialTheme.typography.bodyMedium,
-            fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace,
+            fontFamily = FontFamily.Monospace,
             maxLines = 3
         )
     }
@@ -545,7 +547,7 @@ private fun ServiceDowntimeChart(buckets: List<DowntimeHourBucket>) {
                                     .offset(y = yOffset),
                                 contentAlignment = Alignment.TopCenter
                             ) {
-                                androidx.compose.material3.Divider(
+                                HorizontalDivider(
                                     modifier = Modifier.fillMaxWidth(),
                                     thickness = 0.5.dp,
                                     color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f)

@@ -177,44 +177,4 @@ object TrackingLogStorage {
         }
         return snapshot.joinToString("\n")
     }
-
-    fun getLogStats(): String {
-        val lines = getAllLogs().split("\n").filter { it.isNotBlank() }
-        if (lines.isEmpty()) {
-            return "Всего записей: 0\nТеги: (пусто)\n\nКомпоненты:\n  Service: ✗ не запущен\n  TrackingJob: ✗ не запущен\n  Repository: ✗ не вызывался\n  Permission: ✗ не проверяется\n  UsageStats: ✗ не опрашивается\n\n⚠ Лог пуст — сервис не запускался или упал при старте.\nПроверьте вкладку 'Анализ' для рекомендаций."
-        }
-
-        val tags = lines.map { line ->
-            val start = line.indexOf('[') + 1
-            val end = line.indexOf(']', start)
-            if (end > start) line.substring(start, end) else "unknown"
-        }
-
-        val tagCounts = tags.groupingBy { it }.eachCount().toSortedMap()
-
-        val sb = StringBuilder()
-        sb.append("Всего записей: ${lines.size}\n")
-        sb.append("Теги:\n")
-        for ((tag, count) in tagCounts) {
-            sb.append("  $tag: $count\n")
-        }
-
-        // Check if we have any entries from each critical component
-        val hasService = tags.contains("Service")
-        val hasJob = tags.contains("Job")
-        val hasRepo = tags.contains("Repo")
-        val hasPermission = tags.contains("Permission")
-        val hasUsageStats = tags.contains("UsageStats")
-        val hasEmailReport = tags.contains("EmailReport")
-
-        sb.append("\nКомпоненты:\n")
-        sb.append("  Service: ${if (hasService) "✓ работает" else "✗ не запущен"}\n")
-        sb.append("  TrackingJob: ${if (hasJob) "✓ работает" else "✗ не запущен"}\n")
-        sb.append("  Repository: ${if (hasRepo) "✓ работает" else "✗ не вызывался"}\n")
-        sb.append("  Permission: ${if (hasPermission) "✓ проверяется" else "✗ не проверяется"}\n")
-        sb.append("  UsageStats: ${if (hasUsageStats) "✓ опрашивается" else "✗ не опрашивается"}\n")
-        sb.append("  EmailReport: ${if (hasEmailReport) "✓ работает" else "✗ не вызывался"}\n")
-
-        return sb.toString()
-    }
 }
