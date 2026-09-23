@@ -32,7 +32,8 @@ class EmailReportSender @Inject constructor(
 
     /**
      * Called from the Timer 3 thread (once per minute).
-     * Checks if a report should be sent and sends it synchronously.
+     * Sends today's report once the send time has passed and it hasn't been delivered yet
+     * (see [ReportSchedule]); failed attempts are retried a few times per day.
      *
      * Log messages (tag [TAG]) are shown on the Debug screen — keep them stable.
      */
@@ -55,17 +56,21 @@ class EmailReportSender @Inject constructor(
                 return
             }
 
-            // 3. Compare with current time
+            // 3. Is it due? Send time passed today and today's report not delivered yet
             val cal = Calendar.getInstance()
-            val currentHour = cal.get(Calendar.HOUR_OF_DAY)
-            val currentMinute = cal.get(Calendar.MINUTE)
-
-            if (currentHour != sendHour || currentMinute != sendMinute) {
+            val nowMinuteOfDay = cal.get(Calendar.HOUR_OF_DAY) * 60 + cal.get(Calendar.MINUTE)
+            val now = System.currentTimeMillis()
+            val today = DateUtils.today()
+            if (nowMinuteOfDay < sendHour * 60 + sendMinute) {
                 return // Not time yet
             }
+            val todayLogs = runBlocking { emailRepository.getLogsByDate(today) }
+            val decision = ReportSchedule.decide(nowMinuteOfDay, sendHour * 60 + sendMinute, todayLogs, now)
+            if (decision != ReportSchedule.Decision.SEND) {
+                return // Already sent / retry later / attempts exhausted
+            }
 
-            // 4. Dedup: skip if sent within last 5 minutes
-            val now = System.currentTimeMillis()
+            // 4. Dedup within the process: skip if an attempt started within the last 5 minutes
             if (now - lastSentAtMs < DEDUP_MS) {
                 val minsAgo = (now - lastSentAtMs) / 60_000
                 TrackingLogStorage.add(TAG, "пропуск: уже отправляли $minsAgo мин назад (дедуп $DEDUP_MINUTES мин)")
@@ -75,10 +80,17 @@ class EmailReportSender @Inject constructor(
             // 5. Mark as sent BEFORE sending (prevents parallel sends on timer overlap)
             lastSentAtMs = now
 
+            // Configuration errors are recorded as FAILED attempts, so they count towards
+            // ReportSchedule.MAX_FAILED_ATTEMPTS_PER_DAY instead of repeating every minute
+            fun fail(logMessage: String, error: String) {
+                TrackingLogStorage.add(TAG, logMessage)
+                saveFailedLog(today, error)
+            }
+
             // 6. SMTP settings — each one must be present
             fun required(key: String): String? =
                 settings[key] ?: run {
-                    TrackingLogStorage.add(TAG, "ОШИБКА: не задан $key")
+                    fail("ОШИБКА: не задан $key", "Missing setting: $key")
                     null
                 }
 
@@ -90,7 +102,7 @@ class EmailReportSender @Inject constructor(
 
             val smtpPort = smtpPortStr.toIntOrNull()
             if (smtpPort == null) {
-                TrackingLogStorage.add(TAG, "ОШИБКА: некорректный smtp_port='$smtpPortStr'")
+                fail("ОШИБКА: некорректный smtp_port='$smtpPortStr'", "Invalid smtp_port: $smtpPortStr")
                 return
             }
 
@@ -99,21 +111,13 @@ class EmailReportSender @Inject constructor(
             // 7. Get active recipients
             val activeRecipients = runBlocking { emailRepository.getActiveRecipients() }
             if (activeRecipients.isEmpty()) {
-                TrackingLogStorage.add(TAG, "ОШИБКА: нет активных получателей")
-                val log = ReportSendLogEntity(
-                    date = DateUtils.today(),
-                    status = "FAILED",
-                    errorMessage = "No active recipients",
-                    recipientCount = 0
-                )
-                runBlocking { emailRepository.saveLog(log) }
+                fail("ОШИБКА: нет активных получателей", "No active recipients")
                 return
             }
 
             TrackingLogStorage.add(TAG, "${activeRecipients.size} получателей найдено")
 
             // 8. Build report
-            val today = DateUtils.today()
             val stats = runBlocking { usageStatsRepository.getDailyUsage(today) }
             val userName = runBlocking {
                 userRepository.user.first()?.name ?: "Пользователь"
@@ -145,7 +149,12 @@ class EmailReportSender @Inject constructor(
             // 10. Save log
             val log = ReportSendLogEntity(
                 date = today,
-                status = if (failedCount == 0) "SUCCESS" else "PARTIAL",
+                // Nothing delivered counts as FAILED so the attempt is retried (ReportSchedule)
+                status = when {
+                    failedCount == 0 -> ReportStatus.SUCCESS
+                    successCount == 0 -> ReportStatus.FAILED
+                    else -> ReportStatus.PARTIAL
+                },
                 errorMessage = if (failedCount > 0) {
                     results.filterNot { it.success }.firstOrNull()?.message
                 } else null,
@@ -160,17 +169,21 @@ class EmailReportSender @Inject constructor(
             TrackingLogStorage.add(TAG, e.stackTraceToString())
 
             // Try to save a failure log
-            try {
-                val log = ReportSendLogEntity(
-                    date = DateUtils.today(),
-                    status = "FAILED",
-                    errorMessage = e.message,
-                    recipientCount = 0
-                )
-                runBlocking { emailRepository.saveLog(log) }
-            } catch (ignore: Exception) {
-                // Even the failure log failed — nothing more we can do
-            }
+            saveFailedLog(DateUtils.today(), e.message)
+        }
+    }
+
+    private fun saveFailedLog(date: String, error: String?) {
+        try {
+            val log = ReportSendLogEntity(
+                date = date,
+                status = ReportStatus.FAILED,
+                errorMessage = error,
+                recipientCount = 0
+            )
+            runBlocking { emailRepository.saveLog(log) }
+        } catch (ignore: Exception) {
+            // Even the failure log failed — nothing more we can do
         }
     }
 }

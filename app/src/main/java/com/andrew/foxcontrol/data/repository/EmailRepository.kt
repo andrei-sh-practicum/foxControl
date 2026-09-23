@@ -40,4 +40,6 @@ class EmailRepository @Inject constructor(
 
     // Report logs
     suspend fun saveLog(log: ReportSendLogEntity): Long = reportLogDao.insertLog(log)
+    suspend fun getLogsByDate(date: String): List<ReportSendLogEntity> =
+        reportLogDao.getLogsByDate(date)
 }
