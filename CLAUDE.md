@@ -58,8 +58,14 @@ Bump `versionCode`/`versionName` in `app/build.gradle.kts` before cutting a buil
 - **`di`** — Hilt modules. `AppModule` provides the Room DB, all DAOs and `PackageManager`; `RepositoryModule` binds the one repository interface that exists.
 
 ### Tests
-- `app/src/test` — JVM tests. Only `DowntimeCalculatorTest`, `FormatUtilsTest` and the state/data-class tests exercise production code; `AlertManagerLogicTest`, `UsageStatsRepositoryLogicTest` and parts of `OnboardingPermissionsTest` test local copies of logic declared inside the test files (and `AlertManagerLogicTest` tests a 60 s cooldown that does not exist in production).
-- `app/src/androidTest/.../HomeScreenUiTest` uses `HiltAndroidRule`/`runTest`, but `hilt-android-testing` and `kotlinx-coroutines-test` are not declared in `app/build.gradle.kts`, so `connectedDebugAndroidTest` does not compile as-is.
+- `app/src/test` — JVM tests (JUnit4 + MockK) against production code: repository (`UsageStatsRepositoryImplTest`, `EmailRepositoryTest` with a fake cipher), `LimitCalculator`, `UsageListFilter`, `ReportSchedule`, `EmailReportBuilder` (golden text), `DateUtils`, hourly calculators, permissions, UI state classes. Classes that construct `Intent`s or call Android APIs directly (`AlertManager`, services, Keystore cipher) are not unit-tested — Android stubs throw on the JVM; `TrackingLogStorage` must be mocked (`mockkObject`) in tests that log.
+- `app/src/androidTest/.../HomeScreenUiTest` uses `HiltAndroidRule`/`runTest`, but `hilt-android-testing` and `kotlinx-coroutines-test` are not declared, so `connectedDebugAndroidTest` does not compile as-is (open question, refactoring_plan 0.2).
+
+### Build notes
+- Dependency and plugin versions live in `gradle/libs.versions.toml`.
+- `gradle/wrapper/gradle-wrapper.jar` is not in the repo, so `./gradlew` fails on a fresh clone; Android Studio (or a local Gradle 8.11.1) works.
+- Room schema is exported to `app/schemas/` — commit the new JSON when bumping the DB version.
+- Release builds are minified (R8); `app/proguard-rules.pro` keeps Jakarta Mail/Angus classes, without them email sending breaks in release.
 
 ### Docs
 - `_docs/` — product plan, roadmap, user stories, DB table docs, `refactoring_plan.md` (behavior-preserving refactoring: dead code, performance, duplication, staged plan), `bugs_plan.md` (bugs/stubs B-1…B-18 with fix options and the owner's decision per item — check it before changing behavior in the affected code). `_docs/archive/` — per-feature design notes.
