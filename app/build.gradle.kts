@@ -24,8 +24,8 @@ android {
         applicationId = "com.andrew.foxcontrol"
         minSdk = 26
         targetSdk = 35
-        versionCode = 45
-        versionName = "1.5.1"
+        versionCode = 46
+        versionName = "1.5.2"
 
         // SMTP defaults come from local.properties (not in git), see _docs/build_secrets.md
         val smtpLogin = localProperties.getProperty("SMTP_LOGIN", "")

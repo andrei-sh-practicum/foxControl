@@ -68,12 +68,14 @@ class TrackingForegroundService : Service() {
     override fun onBind(intent: Intent?): IBinder? = null
 
     override fun onDestroy() {
-        super.onDestroy()
         Log.d(TAG, "TrackingForegroundService destroyed")
         TrackingLogStorage.add("Service", "TrackingForegroundService destroyed")
         // Cancel the monitor first so it can't restart the job we are about to stop
         checkPermissionJob?.cancel()
         trackingJob.stop()
+        // Must be called BEFORE super.onDestroy() to avoid ForegroundServiceDidNotStopInTimeException
+        stopForeground(true)
+        super.onDestroy()
     }
 
     /**
